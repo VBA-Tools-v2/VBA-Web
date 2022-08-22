@@ -6,7 +6,7 @@ Attribute VB_Name = "WebRequest"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
-Attribute VB_Exposed = True
+Attribute VB_Exposed = False
 ''
 ' WebRequest v4.1.6
 ' (c) Tim Hall - https://github.com/VBA-tools/VBA-Web
@@ -40,10 +40,22 @@ Attribute VB_Exposed = True
 '
 ' Errors:
 ' 11020 / 80042b0c / -2147210484 - Cannot add body parameter to non-Dictionary
+' 11021 / 80042b0d / -2147210483 - Cannot add body node to non-XML body
 '
 ' @class WebRequest
 ' @author tim.hall.engr@gmail.com
 ' @license MIT (http://www.opensource.org/licenses/mit-license.php)
+'' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
+' VBA-Git Annotations
+' https://github.com/VBA-Tools-v2/VBA-Git | https://radiuscore.co.nz
+'
+' @excludeobfuscation
+'' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
+' RubberDuck Annotations
+' https://rubberduckvba.com/ | https://github.com/rubberduck-vba/Rubberduck/
+'
+'@folder VBA-Web
+'@ignoremodule
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit
 
@@ -312,13 +324,13 @@ Public Property Get CustomRequestFormat() As String
     CustomRequestFormat = web_pCustomRequestFormat
 End Property
 Public Property Let CustomRequestFormat(Value As String)
-    If Value <> web_pCustomRequestFormat Then
+    If Not Value = web_pCustomRequestFormat Then
         web_pCustomRequestFormat = Value
 
         ' Clear cached converted body
         web_pConvertedBody = Empty
 
-        If Value <> "" Then
+        If Not Value = vbNullString Then
             web_pRequestFormat = WebFormat.Custom
         End If
     End If
@@ -348,13 +360,13 @@ Public Property Get CustomResponseFormat() As String
     CustomResponseFormat = web_pCustomResponseFormat
 End Property
 Public Property Let CustomResponseFormat(Value As String)
-    If Value <> web_pCustomResponseFormat Then
+    If Not Value = web_pCustomResponseFormat Then
         web_pCustomResponseFormat = Value
 
         ' Clear cached converted body
         web_pConvertedBody = Empty
 
-        If Value <> "" Then
+        If Not Value = vbNullString Then
             ResponseFormat = WebFormat.Custom
         End If
     End If
@@ -377,7 +389,7 @@ End Property
 ' @default Media-type of request format
 ''
 Public Property Get ContentType() As String
-    If web_pContentType <> "" Then
+    If Not web_pContentType = vbNullString Then
         ContentType = web_pContentType
     Else
         ContentType = WebHelpers.FormatToMediaType(Me.RequestFormat, Me.CustomRequestFormat)
@@ -404,7 +416,7 @@ End Property
 ' @default Media-type of response format
 ''
 Public Property Get Accept() As String
-    If web_pAccept <> "" Then
+    If Not web_pAccept = vbNullString Then
         Accept = web_pAccept
     Else
         Accept = WebHelpers.FormatToMediaType(Me.ResponseFormat, Me.CustomResponseFormat)
@@ -424,7 +436,7 @@ End Property
 ' -> If AcceptEncoding != "identity", enable --compressed flag
 ''
 Public Property Get AcceptEncoding() As String
-    If web_pAcceptEncoding <> "" Then
+    If Not web_pAcceptEncoding = vbNullString Then
         AcceptEncoding = web_pAcceptEncoding
     Else
         AcceptEncoding = "identity"
@@ -572,7 +584,7 @@ End Property
 ' @type String
 ''
 Public Property Get Id() As String
-    If web_pId = "" Then: web_pId = WebHelpers.CreateNonce
+    If web_pId = vbNullString Then: web_pId = WebHelpers.CreateNonce
     Id = web_pId
 End Property
 
@@ -705,6 +717,74 @@ Public Sub AddCookie(Key As String, Value As Variant)
 End Sub
 
 ''
+' Add XML Node to `Body`.
+'
+' `Body` must be a `Dictionary` (if it's an `Array` or `Collection` an error is thrown).
+' `WebFormat` must be `XML`.
+'
+' @example
+' ```VB.net
+' Dim Request as New WebRequest
+' Request.Format = WebFormat.XML
+'
+' Request.AddBodyParameter "a", 123, "alphabet"
+' Request.AddBodyParameter "b", 456, "alphabet"
+'
+' Debug.Print Request.Body ' -> "<alphabet><a>123</a><b>456</b></alphabet>"
+' ```
+'
+' @method AddBodyNode
+' @param {String} Name
+' @param {Variant} Value
+' @param {ParentNodeName} String
+' @throws 11020 / 80042b0c / -2147210484 - Cannot add body parameter to non-Dictionary
+'         11021 / 80042b0d / -2147210483 - Cannot add body node to non-XML body
+''
+Public Sub AddBodyNode(ByVal Name As String, Optional ByVal Value As Variant = Null, _
+                       Optional ByVal ParentNode As String, _
+                       Optional ByVal AttributeName As String, Optional ByVal AttributeValue As String)
+    Dim web_Attributes As Collection
+    Dim web_ErrorDescription As String
+    
+    If Not Me.Format = WebFormat.Xml Then
+        web_ErrorDescription = "Can only add body node to an XML body. Set Format = `WebFormat.XML` and try again."
+        
+        WebHelpers.LogError web_ErrorDescription, "WebRequest.AddBodyNode", 11021 + vbObjectError
+        Err.Raise 11021 + vbObjectError, "WebRequest.AddBodyNode", web_ErrorDescription
+    Else
+        If VBA.IsEmpty(web_pBody) Then
+            Set web_pBody = CreateNode(vbNullString)
+        ElseIf Not TypeOf web_pBody Is Dictionary Then
+            web_ErrorDescription = "Cannot add body parameter to non-Dictionary Body (existing Body must be of type Dictionary)"
+    
+            WebHelpers.LogError web_ErrorDescription, "WebRequest.AddBodyNode", 11020 + vbObjectError
+            Err.Raise 11020 + vbObjectError, "WebRequest.AddBodyNode", web_ErrorDescription
+        End If
+        
+        ' Validate required dictionary keys exist (they won't be present if the body was created before Format = `WebFormat.XML`).
+        If Not web_pBody.Exists("nodeName") Or Not web_pBody.Exists("childNodes") Then
+            web_ErrorDescription = "Can only add body node to an XML body. Set Format = `WebFormat.XML`, clear the existing body (Body = Empty) and try again."
+            
+            WebHelpers.LogError web_ErrorDescription, "WebRequest.AddBodyNode", 11021 + vbObjectError
+            Err.Raise 11021 + vbObjectError, "WebRequest.AddBodyNode", web_ErrorDescription
+        End If
+        
+        ' Set Parent Node name if given.
+        If Not ParentNode = vbNullString Then web_pBody.Item("nodeName") = ParentNode
+        
+        ' Add node to 'childNodes' collection.
+        If Not AttributeName = vbNullString Then
+            Set web_Attributes = New Collection
+            web_Attributes.Add CreateAttribute(AttributeName, AttributeValue)
+        End If
+        web_pBody.Item("childNodes").Add CreateNode(Name, Value, , web_Attributes)
+        
+        ' Clear cached converted body
+        web_pConvertedBody = Empty
+    End If
+End Sub
+
+''
 ' Add `Key-Value` to `Body`.
 ' `Body` must be a `Dictionary` (if it's an `Array` or `Collection` an error is thrown)
 '
@@ -743,9 +823,9 @@ Public Sub AddBodyParameter(Key As Variant, Value As Variant)
     End If
 
     If VBA.IsObject(Value) Then
-        Set web_pBody(Key) = Value
+        Set web_pBody.Item(Key) = Value
     Else
-        web_pBody(Key) = Value
+        web_pBody.Item(Key) = Value
     End If
 
     ' Clear cached converted body
@@ -873,13 +953,13 @@ Private Function web_EncodeCookieName(web_CookieName As Variant) As String
                     web_Result(web_i) = web_Char
 
                 Case 0 To 15
-                    web_Result(web_i) = "%0" & VBA.Hex(web_CharCode)
+                    web_Result(web_i) = "%0" & VBA.Hex$(web_CharCode)
                 Case Else
-                    web_Result(web_i) = "%" & VBA.Hex(web_CharCode)
+                    web_Result(web_i) = "%" & VBA.Hex$(web_CharCode)
             End Select
         Next web_i
 
-        web_EncodeCookieName = VBA.Join$(web_Result, "")
+        web_EncodeCookieName = VBA.Join$(web_Result, vbNullString)
     End If
 End Function
 

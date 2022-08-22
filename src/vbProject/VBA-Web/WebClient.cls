@@ -6,7 +6,7 @@ Attribute VB_Name = "WebClient"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
-Attribute VB_Exposed = True
+Attribute VB_Exposed = False
 ''
 ' WebClient v4.1.6
 ' (c) Tim Hall - https://github.com/VBA-tools/VBA-Web
@@ -41,6 +41,17 @@ Attribute VB_Exposed = True
 ' @class WebClient
 ' @author tim.hall.engr@gmail.com
 ' @license MIT (http://www.opensource.org/licenses/mit-license.php)
+'' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
+' VBA-Git Annotations
+' https://github.com/VBA-Tools-v2/VBA-Git | https://radiuscore.co.nz
+'
+' @excludeobfuscation
+'' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
+' RubberDuck Annotations
+' https://rubberduckvba.com/ | https://github.com/rubberduck-vba/Rubberduck/
+'
+'@folder VBA-Web
+'@ignoremodule
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit
 
@@ -78,6 +89,13 @@ Private Enum web_WinHttpRequestOption
     web_WinHttpRequestOption_MaxResponseDrainSize = 16
     web_WinHttpRequestOption_EnableHttp1_1 = 17
     web_WinHttpRequestOption_EnableCertificateRevocationCheck = 18
+End Enum
+
+Private Enum web_ServerXmlHttpRequestOption
+    web_ServerXmlHttpRequestOption_Sxh_Option_Url_Codepage = 0
+    web_ServerXmlHttpRequestOption_Sxh_Option_Escape_Percent_In_Url = 1
+    web_Serverxmlhttprequestoption_Sxh_Option_Ignore_Server_Ssl_Cert_Error_Flags = 2
+    web_ServerXmlHttpRequestOption_Sxh_Option_Select_Client_Ssl_Cert = 3
 End Enum
 
 Private web_pProxyServer As String
@@ -138,7 +156,7 @@ Public Authenticator As IWebAuthenticator
 ' @type Long
 ' @default 5000
 ''
-Public TimeoutMs As Long
+Public TimeoutMS As Long
 
 ''
 ' Comma separated list of domains to bypass the proxy.
@@ -191,6 +209,27 @@ Public Insecure As Boolean
 ' @default True
 ''
 Public FollowRedirects As Boolean
+
+''
+' Use `Msxml2.ServerXMLHTTP` instead of `WinHttp.WinHttpRequest.5.1`
+' Prevents appending encoding string to Content-Type header.
+'
+' @property UseXmlClient
+' @type Boolean
+' @default False
+''
+Public UseXmlClient As Boolean
+
+''
+' Loop every 2.5ms so Excel can stay responsive during request. Set to
+' False if VBA.DoEvents is causing performance issues. This will mean Excel goes
+' unresponsive if timeout is long.
+'
+' @property WaitLoop
+' @type Boolean
+' @default True
+''
+Public WaitLoop As Boolean
 
 ''
 ' Proxy server to pass requests through (except for those that match `ProxyBypassList`).
@@ -314,12 +353,16 @@ Public Function Execute(Request As WebRequest) As WebResponse
 
 #Else
     Set web_Http = Me.PrepareHttpRequest(Request)
-
     web_Http.Send Request.Body
-    Do While Not web_Http.WaitForResponse(0.025)
-        VBA.DoEvents
-    Loop
 
+    If Me.WaitLoop Then
+        Do While Not web_Http.WaitForResponse(0.025)
+            VBA.DoEvents
+        Loop
+    Else
+        web_Http.WaitForResponse
+    End If
+    
     web_Response.CreateFromHttp Me, Request, web_Http
 
 #End If
@@ -350,10 +393,12 @@ web_ErrorHandling:
         WebHelpers.LogResponse Me, Request, web_Response
         Set Execute = web_Response
         Err.Clear
+    Case 11040 To 11045 ' Bubble-up Authenticator errors.
+        Err.Raise Err.Number, Err.Source, Err.Description
     Case Else
         ' Error
         web_ErrorDescription = "An error occurred during execute" & vbNewLine & _
-            Err.Number & VBA.IIf(Err.Number < 0, " (" & VBA.LCase$(VBA.Hex$(Err.Number)) & ")", "") & ": " & Err.Description
+            Err.Number & VBA.IIf(Err.Number < 0, " (" & VBA.LCase$(VBA.Hex$(Err.Number)) & ")", vbNullString) & ": " & Err.Description
 
         WebHelpers.LogError web_ErrorDescription, "WebClient.Execute", 11011 + vbObjectError
         Err.Raise 11011 + vbObjectError, "WebClient.Execute", web_ErrorDescription
@@ -477,10 +522,10 @@ End Function
 ' @param {String} [BypassList=""] Comma-separated list of servers that should bypass proxy
 ''
 Public Sub SetProxy(ProxyServer As String, _
-    Optional Username As String = "", Optional Password As String = "", Optional BypassList As String = "")
+    Optional UserName As String = vbNullString, Optional Password As String = vbNullString, Optional BypassList As String = vbNullString)
 
     Me.ProxyServer = ProxyServer
-    Me.ProxyUsername = Username
+    Me.ProxyUsername = UserName
     Me.ProxyPassword = Password
     Me.ProxyBypassList = BypassList
 End Sub
@@ -510,8 +555,13 @@ Public Function PrepareHttpRequest(Request As WebRequest, Optional Async As Bool
     Dim web_KeyValue As Dictionary
 
     On Error GoTo web_ErrorHandling
-
-    Set web_Http = CreateObject("WinHttp.WinHttpRequest.5.1")
+    
+    ' Prepare client object
+    If Me.UseXmlClient Then
+        Set web_Http = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+    Else
+        Set web_Http = CreateObject("WinHttp.WinHttpRequest.5.1")
+    End If
 
     ' Prepare request (before open)
     web_BeforeExecute Request
@@ -520,7 +570,7 @@ Public Function PrepareHttpRequest(Request As WebRequest, Optional Async As Bool
     web_Http.Open WebHelpers.MethodToName(Request.Method), Me.GetFullUrl(Request), Async
 
     ' Set timeouts
-    web_Http.SetTimeouts Me.TimeoutMs, Me.TimeoutMs, Me.TimeoutMs, Me.TimeoutMs
+    web_Http.SetTimeouts Me.TimeoutMS, Me.TimeoutMS, Me.TimeoutMS, Me.TimeoutMS
 
     ' Load auto-proxy (if needed)
     If Me.EnableAutoProxy Then
@@ -529,11 +579,11 @@ Public Function PrepareHttpRequest(Request As WebRequest, Optional Async As Bool
 
     ' Setup proxy
     ' See http://msdn.microsoft.com/en-us/library/windows/desktop/aa384059(v=vs.85).aspx for details
-    If Me.ProxyServer <> "" Then
+    If Not Me.ProxyServer = vbNullString Then
         WebHelpers.LogDebug "SetProxy: " & Me.ProxyServer, "WebClient.PrepareHttpRequest"
         web_Http.SetProxy web_HttpRequest_ProxySetting_Proxy, Me.ProxyServer, Me.ProxyBypassList
 
-        If Me.ProxyUsername <> "" Then
+        If Not Me.ProxyUsername = vbNullString Then
             WebHelpers.LogDebug "SetProxyCredentials: " & Me.ProxyUsername & ", " & WebHelpers.Obfuscate(Me.ProxyPassword), "WebClient.PrepareHttpRequest"
             web_Http.SetCredentials Me.ProxyUsername, Me.ProxyPassword, web_HttpRequest_SetCredentials_ForProxy
         End If
@@ -543,30 +593,41 @@ Public Function PrepareHttpRequest(Request As WebRequest, Optional Async As Bool
     End If
 
     ' Setup security
-    If Me.Insecure Then
-        ' - Disable certifcate revocation check
-        ' - Ignore all SSL errors
-        '   Unknown certification authority (CA) or untrusted root, 0x0100
-        '   Wrong usage, 0x0200
-        '   Invalid common name (CN), 0x1000
-        '   Invalid date or certificate expired, 0x2000
-        '   = 0x3300 = 13056
-        ' - Enable https-to-http redirects
-        web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_EnableCertificateRevocationCheck) = False
-        web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_SslErrorIgnoreFlags) = 13056
-        web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_EnableHttpsToHttpRedirects) = True
+    If Me.UseXmlClient Then
+        If Me.Insecure Then
+            ' - Ignore all SSL errors
+            web_Http.SetOption(web_ServerXmlHttpRequestOption.web_Serverxmlhttprequestoption_Sxh_Option_Ignore_Server_Ssl_Cert_Error_Flags) = 13056
+        Else
+            ' By default:
+            ' - Ignore no SLL erros
+            web_Http.SetOption(web_ServerXmlHttpRequestOption.web_Serverxmlhttprequestoption_Sxh_Option_Ignore_Server_Ssl_Cert_Error_Flags) = 0
+        End If
     Else
-        ' By default:
-        ' - Enable certificate revocation check (especially useful after HeartBleed)
-        ' - Ignore no SLL erros
-        ' - Disable https-to-http redirects
-        web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_EnableCertificateRevocationCheck) = True
-        web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_SslErrorIgnoreFlags) = 0
-        web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_EnableHttpsToHttpRedirects) = False
+        If Me.Insecure Then
+            ' - Disable certifcate revocation check
+            ' - Ignore all SSL errors
+            '   Unknown certification authority (CA) or untrusted root, 0x0100
+            '   Wrong usage, 0x0200
+            '   Invalid common name (CN), 0x1000
+            '   Invalid date or certificate expired, 0x2000
+            '   = 0x3300 = 13056
+            ' - Enable https-to-http redirects
+            web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_EnableCertificateRevocationCheck) = False
+            web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_SslErrorIgnoreFlags) = 13056
+            web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_EnableHttpsToHttpRedirects) = True
+        Else
+            ' By default:
+            ' - Enable certificate revocation check (especially useful after HeartBleed)
+            ' - Ignore no SLL erros
+            ' - Disable https-to-http redirects
+            web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_EnableCertificateRevocationCheck) = True
+            web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_SslErrorIgnoreFlags) = 0
+            web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_EnableHttpsToHttpRedirects) = False
+        End If
     End If
 
     ' Setup redirects
-    web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_EnableRedirects) = Me.FollowRedirects
+    If Not Me.UseXmlClient Then web_Http.Option(web_WinHttpRequestOption.web_WinHttpRequestOption_EnableRedirects) = Me.FollowRedirects
 
     ' Set headers on http request (after open)
     For Each web_KeyValue In Request.Headers
@@ -590,9 +651,14 @@ Public Function PrepareHttpRequest(Request As WebRequest, Optional Async As Bool
 web_ErrorHandling:
 
     Set web_Http = Nothing
-    Err.Raise 11012 + vbObjectError, "WebClient.PrepareHttpRequest", _
-        "An error occurred while preparing http request" & vbNewLine & _
-        Err.Number & VBA.IIf(Err.Number < 0, " (" & VBA.LCase$(VBA.Hex$(Err.Number)) & ")", "") & ": " & Err.Description
+    Select Case Err.Number - vbObjectError
+    Case 11040 To 11045 ' Bubble-up Authenticator errors.
+        Err.Raise Err.Number, Err.Source, Err.Description
+    Case Else
+        Err.Raise 11012 + vbObjectError, "WebClient.PrepareHttpRequest", _
+            "An error occurred while preparing http request" & vbNewLine & _
+            Err.Number & VBA.IIf(Err.Number < 0, " (" & VBA.LCase$(VBA.Hex$(Err.Number)) & ")", vbNullString) & ": " & Err.Description
+    End Select
 End Function
 
 ''
@@ -618,17 +684,17 @@ Public Function PrepareCurlRequest(Request As WebRequest) As String
 
     ' Set timeouts
     ' (max time = resolve + sent + receive)
-    web_Curl = web_Curl & " --connect-timeout " & Me.TimeoutMs / 1000
-    web_Curl = web_Curl & " --max-time " & 3 * Me.TimeoutMs / 1000
+    web_Curl = web_Curl & " --connect-timeout " & Me.TimeoutMS / 1000
+    web_Curl = web_Curl & " --max-time " & 3 * Me.TimeoutMS / 1000
 
     ' Setup proxy
-    If Me.ProxyServer <> "" Then
+    If Not Me.ProxyServer = vbNullString Then
         web_Curl = web_Curl & " --proxy " & Me.ProxyServer
 
-        If Me.ProxyBypassList <> "" Then
+        If Not Me.ProxyBypassList = vbNullString Then
             web_Curl = web_Curl & " --noproxy " & Me.ProxyBypassList
         End If
-        If Me.ProxyUsername <> "" Then
+        If Not Me.ProxyUsername = vbNullString Then
             web_Curl = web_Curl & " --proxy-user " & Me.ProxyUsername & ":" & Me.ProxyPassword
         End If
     End If
@@ -644,7 +710,7 @@ Public Function PrepareCurlRequest(Request As WebRequest) As String
     End If
     
     ' Enable compressed if Accept-Encoding != "identity"
-    If Request.AcceptEncoding <> "identity" Then
+    If Not Request.AcceptEncoding = "identity" Then
         web_Curl = web_Curl & " --compressed"
     End If
 
@@ -656,7 +722,7 @@ Public Function PrepareCurlRequest(Request As WebRequest) As String
     For Each web_KeyValue In Request.Cookies
         web_CookieString = web_CookieString & web_KeyValue("Key") & "=" & web_KeyValue("Value") & ";"
     Next web_KeyValue
-    If web_CookieString <> "" Then
+    If Not web_CookieString = vbNullString Then
         web_Curl = web_Curl & " --cookie '" & web_CookieString & "'"
     End If
 
@@ -679,7 +745,7 @@ web_ErrorHandling:
 
     Err.Raise 11013 + vbObjectError, "WebClient.PrepareCURLRequest", _
         "An error occurred while preparing cURL request" & vbNewLine & _
-        Err.Number & VBA.IIf(Err.Number < 0, " (" & VBA.LCase$(VBA.Hex$(Err.Number)) & ")", "") & ": " & Err.Description
+        Err.Number & VBA.IIf(Err.Number < 0, " (" & VBA.LCase$(VBA.Hex$(Err.Number)) & ")", vbNullString) & ": " & Err.Description
 End Function
 
 ''
@@ -697,7 +763,7 @@ Public Function Clone() As WebClient
     Clone.ProxyUsername = Me.ProxyUsername
     Clone.ProxyPassword = Me.ProxyPassword
     Clone.EnableAutoProxy = Me.EnableAutoProxy
-    Clone.TimeoutMs = Me.TimeoutMs
+    Clone.TimeoutMS = Me.TimeoutMS
     Clone.Insecure = Me.Insecure
     Set Clone.Authenticator = Me.Authenticator
 End Function
@@ -726,7 +792,7 @@ Private Sub web_LoadAutoProxy(web_Request As WebRequest)
     Dim web_ProxyBypassList As String
 
     Set web_Parts = WebHelpers.GetUrlParts(Me.GetFullUrl(web_Request))
-    web_Domain = VBA.IIf(web_Parts("Protocol") <> "", web_Parts("Protocol") & "://", "") & _
+    web_Domain = VBA.IIf(web_Parts("Protocol") = vbNullString, vbNullString, web_Parts("Protocol") & "://") & _
         web_Parts("Host") & ":" & web_Parts("Port")
 
     ' Cache auto-proxy by domain
@@ -750,14 +816,16 @@ Private Sub web_LoadAutoProxy(web_Request As WebRequest)
 web_ErrorHandling:
 
     WebHelpers.LogError "An error occurred while loading auto-proxy" & vbNewLine & _
-        Err.Number & VBA.IIf(Err.Number < 0, " (" & VBA.LCase$(VBA.Hex$(Err.Number)) & ")", "") & ": " & Err.Description, _
+        Err.Number & VBA.IIf(Err.Number < 0, " (" & VBA.LCase$(VBA.Hex$(Err.Number)) & ")", vbNullString) & ": " & Err.Description, _
         "WebClient.LoadAutoProxy", Err.Number
 #End If
 End Sub
 
 Private Sub Class_Initialize()
-    Me.TimeoutMs = web_DefaultTimeoutMs
+    Me.TimeoutMS = web_DefaultTimeoutMs
     Me.EnableAutoProxy = False
     Me.Insecure = False
     Me.FollowRedirects = True
+    Me.UseXmlClient = False
+    Me.WaitLoop = True
 End Sub
