@@ -240,13 +240,13 @@ End Enum
 ' @param HttpGet
 ' @default HttpGet
 ''
-Public Enum WebMethod
-    HttpGet = 0
-    HttpPost = 1
-    HttpPut = 2
-    HttpDelete = 3
-    HttpPatch = 4
-    HttpHead = 5
+Public Enum VbWebMethod
+    vbWebHttpGet = 0
+    vbWebHttpPost = 1
+    vbWebHttpPut = 2
+    vbWebHttpDelete = 3
+    vbWebHttpPatch = 4
+    vbWebHttpHead = 5
 End Enum
 
 ''
@@ -258,12 +258,12 @@ End Enum
 ' @param Custom
 ' @default PlainText
 ''
-Public Enum WebFormat
-    PlainText = 0
-    Json = 1
-    FormUrlEncoded = 2
-    Xml = 3
-    Custom = 9
+Public Enum VbWebFormat
+    vbWebPlainText = 0
+    vbWebJson = 1
+    vbWebFormUrlEncoded = 2
+    vbWebXML = 3
+    vbWebCustom = 9
 End Enum
 
 ''
