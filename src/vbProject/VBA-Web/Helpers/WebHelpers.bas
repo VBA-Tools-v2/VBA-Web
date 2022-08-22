@@ -223,6 +223,7 @@ Public Enum WebStatusCode
     NotFound = 404
     RequestTimeout = 408
     UnsupportedMediaType = 415
+	TooManyRequests = 429
     InternalServerError = 500
     BadGateway = 502
     ServiceUnavailable = 503
