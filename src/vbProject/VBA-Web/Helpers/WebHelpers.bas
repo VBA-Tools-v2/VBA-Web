@@ -39,6 +39,7 @@ Attribute VB_Name = "WebHelpers"
 '@ignoremodule
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit
+Option Private Module
 
 ' Contents:
 ' 1. Logging
