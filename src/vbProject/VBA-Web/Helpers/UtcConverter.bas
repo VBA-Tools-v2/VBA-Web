@@ -31,7 +31,6 @@ Attribute VB_Name = "UtcConverter"
 Option Explicit
 Option Private Module
 
-
 ' --------------------------------------------- '
 ' Windows API Headers
 ' --------------------------------------------- '
@@ -296,7 +295,7 @@ End Function
 ' @return {Date} Local date
 ' @throws 10015 - Unix parsing error
 ''
-Private Function ParseUnix(UnixDate As Long) As Date
+Public Function ParseUnix(UnixDate As Long) As Date
     On Error GoTo utc_ErrorHandling
     
     ParseUnix = ParseUtc(DateAdd("s", UnixDate, "1/1/1970 00:00:00"))
@@ -315,7 +314,7 @@ End Function
 ' @return {String} Unix timestamp
 ' @throws 10016 - Unix conversion error
 ''
-Private Function ConvertToUnix(LocalDate As Date) As Long
+Public Function ConvertToUnix(LocalDate As Date) As Long
     On Error GoTo utc_ErrorHandling
     
     ConvertToUnix = VBA.DateDiff("s", "1/1/1970", ConvertToUtc(LocalDate))
