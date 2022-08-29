@@ -18,6 +18,7 @@ Attribute VB_Name = "JsonXmlConverter"
 ' https://rubberduckvba.com/ | https://github.com/rubberduck-vba/Rubberduck/
 '
 '@folder VBA-Web.Helpers
+'@ignoremodule
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit
 Option Private Module
@@ -34,10 +35,8 @@ Option Private Module
 ' @param {Integer|String} Whitespace | "Pretty" print JSON with given number of spaces per indentation (Integer) or given string
 ' @param {VbVarType} ReturnAs | Whether to return a JSON string or object. `vbString` or `vbObject` only.
 ' @return {Dictionary|Collection|String} JSON object or string.
-' @dependency VBA-JSON
-' @dependency VBA-XML
 ''
-Public Function ConvertXmlToJson(ByVal XmlValue As Variant, Optional ByVal Whitespace As Variant, Optional ReturnAs As VbVarType = vbString) As Variant
+Public Function ConvertXmlToJson(ByVal XmlValue As Variant, Optional ByVal Whitespace As Variant, Optional ByVal ReturnAs As VbVarType = vbString) As Variant
     Dim xml_ChildNode As Dictionary
     Dim xml_JsonObject As Dictionary
     Dim xml_JsonNodeName As String

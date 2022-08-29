@@ -27,6 +27,7 @@ Attribute VB_Name = "UtcConverter"
 ' https://rubberduckvba.com/ | https://github.com/rubberduck-vba/Rubberduck/
 '
 '@folder VBA-Web.Helpers
+'@ignoremodule
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit
 Option Private Module
@@ -216,7 +217,7 @@ Public Function ParseIso(utc_IsoString As String) As Date
 
     If UBound(utc_Parts) > 0 Then
         If VBA.InStr(utc_Parts(1), "Z") Then
-            utc_TimeParts = VBA.Split(VBA.Replace(utc_Parts(1), "Z", ""), ":")
+            utc_TimeParts = VBA.Split(VBA.Replace(utc_Parts(1), "Z", vbNullString), ":")
         Else
             utc_OffsetIndex = VBA.InStr(1, utc_Parts(1), "+")
             If utc_OffsetIndex = 0 Then

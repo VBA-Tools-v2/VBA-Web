@@ -387,7 +387,7 @@ web_ErrorHandling:
     Select Case Err.Number And 65535
     Case 12002, 12007, 12029
         ' Treat timeout-related errors as 408: timeout, name not resolved, cannot connect
-        web_Response.StatusCode = WebStatusCode.RequestTimeout
+        web_Response.StatusCode = VbWebStatusCode.vbWebStatusRequestTimeout
         web_Response.StatusDescription = "Request Timeout: " & Err.Description
 
         WebHelpers.LogResponse Me, Request, web_Response
@@ -440,8 +440,8 @@ Public Function GetJson(Url As String, Optional Options As Dictionary) As WebRes
     Dim web_Request As New WebRequest
     web_Request.CreateFromOptions Options
     web_Request.Resource = Url
-    web_Request.Format = WebFormat.Json
-    web_Request.Method = WebMethod.HttpGet
+    web_Request.Format = VbWebFormat.vbWebFormatJson
+    web_Request.Method = VbWebMethod.vbWebHttpGet
 
     Set GetJson = Me.Execute(web_Request)
 End Function
@@ -487,8 +487,8 @@ Public Function PostJson(Url As String, Body As Variant, Optional Options As Dic
     Dim web_Request As New WebRequest
     web_Request.CreateFromOptions Options
     web_Request.Resource = Url
-    web_Request.Format = WebFormat.Json
-    web_Request.Method = WebMethod.HttpPost
+    web_Request.Format = VbWebFormat.vbWebFormatJson
+    web_Request.Method = VbWebMethod.vbWebHttpPost
     If VBA.IsObject(Body) Then
         Set web_Request.Body = Body
     Else
@@ -829,3 +829,4 @@ Private Sub Class_Initialize()
     Me.UseXmlClient = False
     Me.WaitLoop = True
 End Sub
+

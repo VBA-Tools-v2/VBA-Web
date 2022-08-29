@@ -1,6 +1,6 @@
 Attribute VB_Name = "XmlConverter"
 ''
-' VBA-XML v0.3.1
+' VBA-XML v0.3.2
 ' (c) Tim Hall - https://github.com/VBA-tools/VBA-XML
 '
 ' XML Converter for VBA
@@ -55,6 +55,7 @@ Attribute VB_Name = "XmlConverter"
 ' https://rubberduckvba.com/ | https://github.com/rubberduck-vba/Rubberduck/
 '
 '@folder VBA-Web.Helpers
+'@ignoremodule
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit
 Option Private Module
@@ -194,35 +195,31 @@ End Function
 ' @return {DOMDocument|Dictionary}
 ''
 Public Function ParseXml(ByVal XmlString As String) As Object
-    Dim xml_String As String
     Dim xml_Index As Long
     xml_Index = 1
 
-    ' Remove vbTab from xml_String
-    xml_String = VBA.Replace(XmlString, VBA.vbTab, vbNullString)
-
-    xml_SkipSpaces xml_String, xml_Index
-    If Not VBA.Mid$(xml_String, xml_Index, 1) = "<" Then
+    xml_SkipWhiteSpace XmlString, xml_Index
+    If Not VBA.Mid$(XmlString, xml_Index, 1) = "<" Then
         ' Error: Invalid XML string
-        Err.Raise 10101, "XMLConverter", xml_ParseErrorMessage(xml_String, xml_Index, "Expecting '<'")
+        Err.Raise 10101, "XMLConverter", xml_ParseErrorMessage(XmlString, xml_Index, "Expecting '<'")
     Else
 #If Mac Then
         Set ParseXml = New Dictionary
-        ParseXml.Add "prolog", xml_ParseProlog(xml_String, xml_Index)
-        ParseXml.Add "doctype", xml_ParseDoctype(xml_String, xml_Index)
+        ParseXml.Add "prolog", xml_ParseProlog(XmlString, xml_Index)
+        ParseXml.Add "doctype", xml_ParseDoctype(XmlString, xml_Index)
         ParseXml.Add "nodeName", "#document"
         ParseXml.Add "attributes", Nothing
         ParseXml.Add "childNodes", New Collection
-        ParseXml.Item("childNodes").Add xml_ParseNode(xml_String, xml_Index, VBA.IIf(XmlOptions.IncludeNodeMapping, ParseXml, Nothing))
+        ParseXml.Item("childNodes").Add xml_ParseNode(XmlString, xml_Index, VBA.IIf(XmlOptions.IncludeNodeMapping, ParseXml, Nothing))
 #Else
         If XmlOptions.ForceVbaXml Then
             Set ParseXml = New Dictionary
-            ParseXml.Add "prolog", xml_ParseProlog(xml_String, xml_Index)
-            ParseXml.Add "doctype", xml_ParseDoctype(xml_String, xml_Index)
+            ParseXml.Add "prolog", xml_ParseProlog(XmlString, xml_Index)
+            ParseXml.Add "doctype", xml_ParseDoctype(XmlString, xml_Index)
             ParseXml.Add "nodeName", "#document"
             ParseXml.Add "attributes", Nothing
             ParseXml.Add "childNodes", New Collection
-            ParseXml.Item("childNodes").Add xml_ParseNode(xml_String, xml_Index, VBA.IIf(XmlOptions.IncludeNodeMapping, ParseXml, Nothing))
+            ParseXml.Item("childNodes").Add xml_ParseNode(XmlString, xml_Index, VBA.IIf(XmlOptions.IncludeNodeMapping, ParseXml, Nothing))
         Else
             Set ParseXml = CreateObject("MSXML2.DOMDocument")
             ParseXml.Async = False
@@ -270,7 +267,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             If VBA.VarType(Whitespace) = VBA.vbString Then
                 xml_Indentation = VBA.String$(xml_CurrentIndentation, Whitespace)
             Else
-                xml_Indentation = VBA.Space$((xml_CurrentIndentation) * Whitespace)
+                xml_Indentation = VBA.Space$(xml_CurrentIndentation * Whitespace)
             End If
         End If
         
@@ -533,7 +530,7 @@ Private Function xml_ParseProlog(xml_String As String, ByRef xml_Index As Long) 
     Dim xml_StartIndex As Long
     Dim xml_Chars As String
 
-    xml_SkipSpaces xml_String, xml_Index
+    xml_SkipWhiteSpace xml_String, xml_Index
     If VBA.Mid$(xml_String, xml_Index, 2) = "<?" Then
         xml_StartIndex = xml_Index
         xml_Index = xml_Index + 2
@@ -569,7 +566,7 @@ Private Function xml_ParseDoctype(xml_String As String, ByRef xml_Index As Long)
     Dim xml_StartIndex As Long
     Dim xml_Char As String
     
-    xml_SkipSpaces xml_String, xml_Index
+    xml_SkipWhiteSpace xml_String, xml_Index
     If VBA.Mid$(xml_String, xml_Index, 2) = "<!" Then
         xml_StartIndex = xml_Index
         xml_Index = xml_Index + 2
@@ -618,7 +615,7 @@ Private Function xml_ParseAttributes(xml_String As String, ByRef xml_Index As Lo
     Dim xml_Name As String
     
     Set xml_ParseAttributes = New Collection
-    xml_SkipSpaces xml_String, xml_Index
+    xml_SkipWhiteSpace xml_String, xml_Index
     xml_StartIndex = xml_Index
     
     Do While xml_Index > 0 And xml_Index <= VBA.Len(xml_String)
@@ -659,7 +656,7 @@ Private Function xml_ParseAttributes(xml_String As String, ByRef xml_Index As Lo
             
             ' Increment.
             xml_Index = xml_Index + 1
-            xml_SkipSpaces xml_String, xml_Index
+            xml_SkipWhiteSpace xml_String, xml_Index
             xml_StartIndex = xml_Index
             
             ' Check for end of tag.
@@ -677,7 +674,7 @@ End Function
 Private Function xml_ParseNode(xml_String As String, ByRef xml_Index As Long, Optional ByRef xml_Parent As Dictionary) As Dictionary
     Dim xml_StartIndex As Long
     
-    xml_SkipSpaces xml_String, xml_Index
+    xml_SkipWhiteSpace xml_String, xml_Index
     If VBA.Mid$(xml_String, xml_Index, 1) <> "<" Then
         Err.Raise 10101, "XMLConverter", xml_ParseErrorMessage(xml_String, xml_Index, "Expecting '<'")
     Else
@@ -728,7 +725,7 @@ Private Function xml_ParseNode(xml_String As String, ByRef xml_Index As Long, Op
         End If
     
         ' 3. Parse node content (child nodes, text, value).
-        xml_SkipSpaces xml_String, xml_Index
+        xml_SkipWhiteSpace xml_String, xml_Index
         If Not VBA.Mid$(xml_String, xml_Index, 2) = "</" Then
             If VBA.Mid$(xml_String, xml_Index, 1) = "<" Then
                 ' If '<' (but not '</'), then child node exists.
@@ -786,7 +783,7 @@ End Function
 Private Function xml_ParseChildNodes(xml_String As String, ByRef xml_Index As Long, Optional ByRef xml_Parent As Dictionary) As Collection
     Set xml_ParseChildNodes = New Collection
     Do While xml_Index > 0 And xml_Index <= VBA.Len(xml_String)
-        xml_SkipSpaces xml_String, xml_Index
+        xml_SkipWhiteSpace xml_String, xml_Index
         If VBA.Mid$(xml_String, xml_Index, 2) = "</" Then
             Exit Function
         ElseIf VBA.Mid$(xml_String, xml_Index, 1) = "<" Then
@@ -823,7 +820,7 @@ Private Function xml_ParseName(xml_String As String, ByRef xml_Index As Long) As
     Dim xml_BufferPosition As Long
     Dim xml_BufferLength As Long
     
-    xml_SkipSpaces xml_String, xml_Index
+    xml_SkipWhiteSpace xml_String, xml_Index
     
     Do While xml_Index > 0 And xml_Index <= VBA.Len(xml_String)
         xml_Char = VBA.Mid$(xml_String, xml_Index, 1)
@@ -1029,9 +1026,9 @@ Private Function xml_Encode(xml_Text As Variant, Optional xml_QuoteChar As Strin
     xml_Encode = xml_BufferToString(xml_Buffer, xml_BufferPosition)
 End Function
 
-Private Sub xml_SkipSpaces(xml_String As String, ByRef xml_Index As Long)
-    ' Increment index to skip over spaces
-    Do While xml_Index > 0 And xml_Index <= VBA.Len(xml_String) And (VBA.Mid$(xml_String, xml_Index, 1) = " " Or VBA.Mid$(xml_String, xml_Index, 1) = vbCr Or VBA.Mid$(xml_String, xml_Index, 1) = vbLf)
+Private Sub xml_SkipWhiteSpace(xml_String As String, ByRef xml_Index As Long)
+    ' Increment index to skip over white space.
+    Do While xml_Index > 0 And xml_Index <= VBA.Len(xml_String) And (VBA.Mid$(xml_String, xml_Index, 1) = " " Or VBA.Mid$(xml_String, xml_Index, 1) = vbCr Or VBA.Mid$(xml_String, xml_Index, 1) = vbLf Or VBA.Mid$(xml_String, xml_Index, 1) = vbTab)
         xml_Index = xml_Index + 1
     Loop
 End Sub
@@ -1147,5 +1144,4 @@ Private Function xml_BufferToString(ByRef xml_Buffer As String, ByVal xml_Buffer
         xml_BufferToString = VBA.Left$(xml_Buffer, xml_BufferPosition)
     End If
 End Function
-
 

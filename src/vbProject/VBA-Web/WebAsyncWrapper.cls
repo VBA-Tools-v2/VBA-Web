@@ -179,7 +179,7 @@ Public Sub TimedOut()
     WebHelpers.LogDebug "Timed out", "WebAsyncWrapper.TimedOut"
 
     ' Callback
-    web_Response.StatusCode = WebStatusCode.RequestTimeout
+    web_Response.StatusCode = VbWebStatusCode.vbWebStatusRequestTimeout
     web_Response.StatusDescription = "Request Timeout"
     web_RunCallback web_Response
 End Sub

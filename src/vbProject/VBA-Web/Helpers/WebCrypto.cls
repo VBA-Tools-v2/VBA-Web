@@ -25,7 +25,7 @@ Attribute VB_Exposed = False
 ' RubberDuck Annotations
 ' https://rubberduckvba.com/ | https://github.com/rubberduck-vba/Rubberduck/
 '
-'@folder VBA-Web
+'@folder VBA-Web.Helpers
 '@ignoremodule
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit

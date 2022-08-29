@@ -63,17 +63,28 @@ Option Explicit
 ' Constants and Private Variables
 ' --------------------------------------------- '
 
-Private web_pRequestFormat As WebFormat
-Private web_pResponseFormat As WebFormat
-Private web_pCustomRequestFormat As String
-Private web_pCustomResponseFormat As String
-Private web_pBody As Variant
-Private web_pConvertedBody As Variant
-Private web_pContentType As String
-Private web_pAccept As String
-Private web_pAcceptEncoding As String
-Private web_pContentLength As Long
-Private web_pId As String
+Private Type TWebRequest
+    Resource As String
+    Method As VbWebMethod
+    Headers As Collection
+    QuerystringParams As Collection
+    UrlSegments As Dictionary
+    Cookies As Collection
+    UserAgent As String
+    RequestFormat As VbWebFormat
+    ResponseFormat As VbWebFormat
+    CustomRequestFormat As String
+    CustomResponseFormat As String
+    Body As Variant
+    ConvertedBody As Variant
+    ContentType As String
+    Accept As String
+    AcceptEncoding As String
+    ContentLength As Long
+    Id As String
+End Type
+
+Private This As TWebRequest
 
 ' --------------------------------------------- '
 ' Properties
@@ -105,7 +116,12 @@ Private web_pId As String
 ' @property Resource
 ' @type String
 ''
-Public Resource As String
+Public Property Get Resource() As String
+    Resource = This.Resource
+End Property
+Public Property Let Resource(Value As String)
+    This.Resource = Value
+End Property
 
 ''
 ' Set the HTTP method to be used for the request:
@@ -114,15 +130,20 @@ Public Resource As String
 ' @example
 ' ```VB.net
 ' Dim Request As New WebRequest
-' Request.Method = WebMethod.HttpGet
-' Request.Method = WebMethod.HttpPost
+' Request.Method = VbWebMethod.vbWebHttpGet
+' Request.Method = VbWebMethod.vbWebHttpPost
 ' ' or HttpPut / HttpPatch / HttpDelete
 ' ```
 '
 ' @property Method
-' @type WebMethod
+' @type VbWebMethod
 ''
-Public Method As WebMethod
+Public Property Get Method() As VbWebMethod
+    Method = This.Method
+End Property
+Public Property Let Method(Value As VbWebMethod)
+    This.Method = Value
+End Property
 
 ''
 ' _Note_ To add headers, use [`AddHeader`](#/WebRequest/AddHeader).
@@ -133,7 +154,12 @@ Public Method As WebMethod
 ' @property Headers
 ' @type Collection
 ''
-Public Headers As Collection
+Public Property Get Headers() As Collection
+    Set Headers = This.Headers
+End Property
+Public Property Set Headers(Value As Collection)
+    Set This.Headers = Value
+End Property
 
 ''
 ' _Note_ To add querystring parameters, use [`AddQuerystringParam`](#/WebRequest/AddQuerystringParam).
@@ -144,7 +170,12 @@ Public Headers As Collection
 ' @property QuerystringParams
 ' @type Collection
 ''
-Public QuerystringParams As Collection
+Public Property Get QuerystringParams() As Collection
+    Set QuerystringParams = This.QuerystringParams
+End Property
+Public Property Set QuerystringParams(Value As Collection)
+    Set This.QuerystringParams = Value
+End Property
 
 ''
 ' _Note_ To add Url Segments, use [`AddUrlSegment`](#/WebRequest/AddUrlSegment)
@@ -176,7 +207,12 @@ Public QuerystringParams As Collection
 ' @property UrlSegments
 ' @type Dictionary
 ''
-Public UrlSegments As Dictionary
+Public Property Get UrlSegments() As Dictionary
+    Set UrlSegments = This.UrlSegments
+End Property
+Public Property Set UrlSegments(Value As Dictionary)
+    Set This.UrlSegments = Value
+End Property
 
 ''
 ' _Note_ To add cookies, use [`AddCookie`](#/WebRequest/AddCookie).
@@ -187,7 +223,12 @@ Public UrlSegments As Dictionary
 ' @property Cookies
 ' @type Collection
 ''
-Public Cookies As Collection
+Public Property Get Cookies() As Collection
+    Set Cookies = This.Cookies
+End Property
+Public Property Set Cookies(Value As Collection)
+    Set This.Cookies = Value
+End Property
 
 ''
 ' User agent to use with request
@@ -204,7 +245,12 @@ Public Cookies As Collection
 ' @type String
 ' @default "VBA-Web v#.#.# (https://github.com/VBA-tools/VBA-Web)"
 ''
-Public UserAgent As String
+Public Property Get UserAgent() As String
+    UserAgent = This.UserAgent
+End Property
+Public Property Let UserAgent(Value As String)
+    This.UserAgent = Value
+End Property
 
 ''
 ' Set `RequestFormat`, `ResponseFormat`, and `Content-Type` and `Accept`
@@ -213,9 +259,9 @@ Public UserAgent As String
 ' @example
 ' ```VB.net
 ' Dim Request As New WebRequest
-' Request.Format = WebFormat.Json
-' ' -> Request.RequestFormat = WebFormat.Json
-' '    Request.ResponseFormat = WebFormat.Json
+' Request.Format = VbWebFormat.vbWebJson
+' ' -> Request.RequestFormat = VbWebFormat.vbWebJson
+' '    Request.ResponseFormat = VbWebFormat.vbWebJson
 ' '    (Header) Content-Type: application/json
 ' '    (Header) Accept: application/json
 ' ```
@@ -223,10 +269,10 @@ Public UserAgent As String
 ' @property Format
 ' @type WebFormat
 ''
-Public Property Get Format() As WebFormat
-    Format = RequestFormat
+Public Property Get Format() As VbWebFormat
+    Format = Me.RequestFormat
 End Property
-Public Property Let Format(Value As WebFormat)
+Public Property Let Format(Value As VbWebFormat)
     Me.RequestFormat = Value
     Me.ResponseFormat = Value
 End Property
@@ -241,7 +287,7 @@ End Property
 ' Dim Request As New WebRequest
 ' Request.Body = Array("A", "B", "C")
 '
-' Request.RequestFormat = WebFormat.Json
+' Request.RequestFormat = VbWebFormat.vbWebJson
 '
 ' ' -> (Header) Content-Type: application/json
 ' ' -> Convert Body to JSON string
@@ -252,15 +298,15 @@ End Property
 ' @type WebFormat
 ' @default WebFormat.Json
 ''
-Public Property Get RequestFormat() As WebFormat
-    RequestFormat = web_pRequestFormat
+Public Property Get RequestFormat() As VbWebFormat
+    RequestFormat = This.RequestFormat
 End Property
-Public Property Let RequestFormat(Value As WebFormat)
-    If Value <> web_pRequestFormat Then
-        web_pRequestFormat = Value
-
+Public Property Let RequestFormat(Value As VbWebFormat)
+    If Value <> This.RequestFormat Then
+        This.RequestFormat = Value
+        
         ' Clear cached converted body
-        web_pConvertedBody = Empty
+        This.ConvertedBody = Empty
     End If
 End Property
 
@@ -272,7 +318,7 @@ End Property
 ' @example
 ' ```VB.net
 ' Dim Request As New WebRequest
-' Request.ResponseFormat = WebFormat.Json
+' Request.ResponseFormat = VbWebFormat.vbWebJson
 '
 ' ' -> (Header) Accept: application/json
 '
@@ -288,15 +334,15 @@ End Property
 ' @type WebFormat
 ' @default WebFormat.Json
 ''
-Public Property Get ResponseFormat() As WebFormat
-    ResponseFormat = web_pResponseFormat
+Public Property Get ResponseFormat() As VbWebFormat
+    ResponseFormat = This.ResponseFormat
 End Property
-Public Property Let ResponseFormat(Value As WebFormat)
-    If Value <> web_pResponseFormat Then
-        web_pResponseFormat = Value
+Public Property Let ResponseFormat(Value As VbWebFormat)
+    If Value <> This.ResponseFormat Then
+        This.ResponseFormat = Value
 
         ' Clear cached converted body
-        web_pConvertedBody = Empty
+        This.ConvertedBody = Empty
     End If
 End Property
 
@@ -321,17 +367,17 @@ End Property
 ' @type String
 ''
 Public Property Get CustomRequestFormat() As String
-    CustomRequestFormat = web_pCustomRequestFormat
+    CustomRequestFormat = This.CustomRequestFormat
 End Property
 Public Property Let CustomRequestFormat(Value As String)
-    If Not Value = web_pCustomRequestFormat Then
-        web_pCustomRequestFormat = Value
+    If Not Value = This.CustomRequestFormat Then
+        This.CustomRequestFormat = Value
 
         ' Clear cached converted body
-        web_pConvertedBody = Empty
+        This.ConvertedBody = Empty
 
         If Not Value = vbNullString Then
-            web_pRequestFormat = WebFormat.Custom
+            This.RequestFormat = VbWebFormat.vbWebFormatCustom
         End If
     End If
 End Property
@@ -357,17 +403,17 @@ End Property
 ' @type String
 ''
 Public Property Get CustomResponseFormat() As String
-    CustomResponseFormat = web_pCustomResponseFormat
+    CustomResponseFormat = This.CustomResponseFormat
 End Property
 Public Property Let CustomResponseFormat(Value As String)
-    If Not Value = web_pCustomResponseFormat Then
-        web_pCustomResponseFormat = Value
+    If Not Value = This.CustomResponseFormat Then
+        This.CustomResponseFormat = Value
 
         ' Clear cached converted body
-        web_pConvertedBody = Empty
+        This.ConvertedBody = Empty
 
         If Not Value = vbNullString Then
-            ResponseFormat = WebFormat.Custom
+            ResponseFormat = VbWebFormat.vbWebFormatCustom
         End If
     End If
 End Property
@@ -389,14 +435,14 @@ End Property
 ' @default Media-type of request format
 ''
 Public Property Get ContentType() As String
-    If Not web_pContentType = vbNullString Then
-        ContentType = web_pContentType
+    If Not This.ContentType = vbNullString Then
+        ContentType = This.ContentType
     Else
         ContentType = WebHelpers.FormatToMediaType(Me.RequestFormat, Me.CustomRequestFormat)
     End If
 End Property
 Public Property Let ContentType(Value As String)
-    web_pContentType = Value
+    This.ContentType = Value
 End Property
 
 ''
@@ -416,14 +462,14 @@ End Property
 ' @default Media-type of response format
 ''
 Public Property Get Accept() As String
-    If Not web_pAccept = vbNullString Then
-        Accept = web_pAccept
+    If Not This.Accept = vbNullString Then
+        Accept = This.Accept
     Else
         Accept = WebHelpers.FormatToMediaType(Me.ResponseFormat, Me.CustomResponseFormat)
     End If
 End Property
 Public Property Let Accept(Value As String)
-    web_pAccept = Value
+    This.Accept = Value
 End Property
 
 ''
@@ -436,14 +482,14 @@ End Property
 ' -> If AcceptEncoding != "identity", enable --compressed flag
 ''
 Public Property Get AcceptEncoding() As String
-    If Not web_pAcceptEncoding = vbNullString Then
-        AcceptEncoding = web_pAcceptEncoding
+    If Not This.AcceptEncoding = vbNullString Then
+        AcceptEncoding = This.AcceptEncoding
     Else
         AcceptEncoding = "identity"
     End If
 End Property
 Public Property Let AcceptEncoding(Value As String)
-    web_pAcceptEncoding = Value
+    This.AcceptEncoding = Value
 End Property
 
 ''
@@ -463,14 +509,14 @@ End Property
 ' @default Length of `Body`
 ''
 Public Property Get ContentLength() As Long
-    If web_pContentLength >= 0 Then
-        ContentLength = web_pContentLength
+    If This.ContentLength >= 0 Then
+        ContentLength = This.ContentLength
     Else
-        ContentLength = Len(Me.Body)
+        ContentLength = VBA.Len(Me.Body)
     End If
 End Property
 Public Property Let ContentLength(Value As Long)
-    web_pContentLength = Value
+    This.ContentLength = Value
 End Property
 
 ''
@@ -508,25 +554,25 @@ End Property
 ' @type String|Array|Collection|Dictionary|Variant
 ''
 Public Property Get Body() As Variant
-    If Not VBA.IsEmpty(web_pBody) Then
-        If VBA.VarType(web_pBody) = vbString Then
-            Body = web_pBody
-        ElseIf IsEmpty(web_pConvertedBody) Then
+    If Not VBA.IsEmpty(This.Body) Then
+        If VBA.VarType(This.Body) = vbString Then
+            Body = This.Body
+        ElseIf VBA.IsEmpty(This.ConvertedBody) Then
             ' Convert body and cache
-            Body = WebHelpers.ConvertToFormat(web_pBody, Me.RequestFormat, Me.CustomRequestFormat)
-            web_pConvertedBody = Body
+            This.ConvertedBody = WebHelpers.ConvertToFormat(This.Body, Me.RequestFormat, Me.CustomRequestFormat)
+            Body = This.ConvertedBody
         Else
-            Body = web_pConvertedBody
+            Body = This.ConvertedBody
         End If
     End If
 End Property
 Public Property Let Body(Value As Variant)
-    web_pConvertedBody = Empty
-    web_pBody = Value
+    This.ConvertedBody = Empty
+    This.Body = Value
 End Property
 Public Property Set Body(Value As Variant)
-    web_pConvertedBody = Empty
-    Set web_pBody = Value
+    This.ConvertedBody = Empty
+    Set This.Body = Value
 End Property
 
 ''
@@ -547,13 +593,13 @@ End Property
 ''
 Public Property Get FormattedResource() As String
     Dim web_Segment As Variant
-    Dim web_Encoding As UrlEncodingMode
+    Dim web_Encoding As VbUrlEncodingMode
 
     FormattedResource = Me.Resource
 
     ' Replace url segments
     For Each web_Segment In Me.UrlSegments.Keys
-        FormattedResource = VBA.Replace(FormattedResource, "{" & web_Segment & "}", WebHelpers.UrlEncode(Me.UrlSegments(web_Segment)))
+        FormattedResource = VBA.Replace(FormattedResource, "{" & web_Segment & "}", WebHelpers.UrlEncode(Me.UrlSegments.Item(web_Segment)))
     Next web_Segment
 
     ' Add querystring
@@ -569,10 +615,10 @@ Public Property Get FormattedResource() As String
         '
         ' If the request format is explicitly form-urlencoded, use FormUrlEncoding (space -> "+")
         ' otherwise, use subset of RFC 3986 and form-urlencoded that should work for both cases (space -> "%20")
-        If Me.RequestFormat = WebFormat.FormUrlEncoded Then
-            web_Encoding = UrlEncodingMode.FormUrlEncoding
+        If Me.RequestFormat = VbWebFormat.vbWebFormatFormUrlEncoded Then
+            web_Encoding = VbUrlEncodingMode.vbUrlEncodingForm
         Else
-            web_Encoding = UrlEncodingMode.QueryUrlEncoding
+            web_Encoding = VbUrlEncodingMode.vbUrlEncodingQuery
         End If
         FormattedResource = FormattedResource & WebHelpers.ConvertToUrlEncoded(Me.QuerystringParams, EncodingMode:=web_Encoding)
     End If
@@ -584,8 +630,8 @@ End Property
 ' @type String
 ''
 Public Property Get Id() As String
-    If web_pId = vbNullString Then: web_pId = WebHelpers.CreateNonce
-    Id = web_pId
+    If This.Id = vbNullString Then: This.Id = WebHelpers.CreateNonce
+    Id = This.Id
 End Property
 
 ' ============================================= '
@@ -712,7 +758,7 @@ End Sub
 Public Sub AddCookie(Key As String, Value As Variant)
     Me.Cookies.Add WebHelpers.CreateKeyValue( _
         web_EncodeCookieName(Key), _
-        WebHelpers.UrlEncode(Value, EncodingMode:=UrlEncodingMode.CookieUrlEncoding) _
+        WebHelpers.UrlEncode(Value, EncodingMode:=VbUrlEncodingMode.vbUrlEncodingCookie) _
     )
 End Sub
 
@@ -746,15 +792,15 @@ Public Sub AddBodyNode(ByVal Name As String, Optional ByVal Value As Variant = N
     Dim web_Attributes As Collection
     Dim web_ErrorDescription As String
     
-    If Not Me.Format = WebFormat.Xml Then
+    If Not Me.Format = VbWebFormat.vbWebFormatXml Then
         web_ErrorDescription = "Can only add body node to an XML body. Set Format = `WebFormat.XML` and try again."
         
         WebHelpers.LogError web_ErrorDescription, "WebRequest.AddBodyNode", 11021 + vbObjectError
         Err.Raise 11021 + vbObjectError, "WebRequest.AddBodyNode", web_ErrorDescription
     Else
-        If VBA.IsEmpty(web_pBody) Then
-            Set web_pBody = CreateNode(vbNullString)
-        ElseIf Not TypeOf web_pBody Is Dictionary Then
+        If VBA.IsEmpty(This.Body) Then
+            Set This.Body = CreateNode(vbNullString)
+        ElseIf Not TypeOf This.Body Is Dictionary Then
             web_ErrorDescription = "Cannot add body parameter to non-Dictionary Body (existing Body must be of type Dictionary)"
     
             WebHelpers.LogError web_ErrorDescription, "WebRequest.AddBodyNode", 11020 + vbObjectError
@@ -762,7 +808,7 @@ Public Sub AddBodyNode(ByVal Name As String, Optional ByVal Value As Variant = N
         End If
         
         ' Validate required dictionary keys exist (they won't be present if the body was created before Format = `WebFormat.XML`).
-        If Not web_pBody.Exists("nodeName") Or Not web_pBody.Exists("childNodes") Then
+        If Not This.Body.Exists("nodeName") Or Not This.Body.Exists("childNodes") Then
             web_ErrorDescription = "Can only add body node to an XML body. Set Format = `WebFormat.XML`, clear the existing body (Body = Empty) and try again."
             
             WebHelpers.LogError web_ErrorDescription, "WebRequest.AddBodyNode", 11021 + vbObjectError
@@ -770,17 +816,17 @@ Public Sub AddBodyNode(ByVal Name As String, Optional ByVal Value As Variant = N
         End If
         
         ' Set Parent Node name if given.
-        If Not ParentNode = vbNullString Then web_pBody.Item("nodeName") = ParentNode
+        If Not ParentNode = vbNullString Then This.Body.Item("nodeName") = ParentNode
         
         ' Add node to 'childNodes' collection.
         If Not AttributeName = vbNullString Then
             Set web_Attributes = New Collection
             web_Attributes.Add CreateAttribute(AttributeName, AttributeValue)
         End If
-        web_pBody.Item("childNodes").Add CreateNode(Name, Value, , web_Attributes)
+        This.Body.Item("childNodes").Add CreateNode(Name, Value, , web_Attributes)
         
         ' Clear cached converted body
-        web_pConvertedBody = Empty
+        This.ConvertedBody = Empty
     End If
 End Sub
 
@@ -812,9 +858,9 @@ End Sub
 ' @throws 11020 / 80042b0c / -2147210484 - Cannot add body parameter to non-Dictionary
 ''
 Public Sub AddBodyParameter(Key As Variant, Value As Variant)
-    If VBA.IsEmpty(web_pBody) Then
-        Set web_pBody = New Dictionary
-    ElseIf Not TypeOf web_pBody Is Dictionary Then
+    If VBA.IsEmpty(This.Body) Then
+        Set This.Body = New Dictionary
+    ElseIf Not TypeOf This.Body Is Dictionary Then
         Dim web_ErrorDescription As String
         web_ErrorDescription = "Cannot add body parameter to non-Dictionary Body (existing Body must be of type Dictionary)"
 
@@ -823,13 +869,13 @@ Public Sub AddBodyParameter(Key As Variant, Value As Variant)
     End If
 
     If VBA.IsObject(Value) Then
-        Set web_pBody.Item(Key) = Value
+        Set This.Body.Item(Key) = Value
     Else
-        web_pBody.Item(Key) = Value
+        This.Body.Item(Key) = Value
     End If
 
     ' Clear cached converted body
-    web_pConvertedBody = Empty
+    This.ConvertedBody = Empty
 End Sub
 
 ''
@@ -840,12 +886,12 @@ End Sub
 ''
 Public Sub Prepare()
     ' Add/replace general headers for request
-    SetHeader "User-Agent", Me.UserAgent
-    SetHeader "Accept", Me.Accept
-    SetHeader "Accept-Encoding", Me.AcceptEncoding
-    If Me.Method <> WebMethod.HttpGet Or Me.ContentLength > 0 Then
-        SetHeader "Content-Type", Me.ContentType
-        SetHeader "Content-Length", VBA.CStr(Me.ContentLength)
+    Me.SetHeader "User-Agent", Me.UserAgent
+    Me.SetHeader "Accept", Me.Accept
+    Me.SetHeader "Accept-Encoding", Me.AcceptEncoding
+    If Me.Method <> VbWebMethod.vbWebHttpGet Or Me.ContentLength > 0 Then
+        Me.SetHeader "Content-Type", Me.ContentType
+        Me.SetHeader "Content-Length", VBA.CStr(Me.ContentLength)
     End If
 End Sub
 
@@ -863,9 +909,9 @@ Public Function Clone() As WebRequest
     Clone.Resource = Me.Resource
     Clone.Method = Me.Method
     Clone.UserAgent = Me.UserAgent
-    Clone.Accept = web_pAccept
-    Clone.ContentType = web_pContentType
-    Clone.ContentLength = web_pContentLength
+    Clone.Accept = This.Accept
+    Clone.ContentType = This.ContentType
+    Clone.ContentLength = This.ContentLength
     Clone.RequestFormat = Me.RequestFormat
     Clone.ResponseFormat = Me.ResponseFormat
     Clone.CustomRequestFormat = Me.CustomRequestFormat
@@ -876,10 +922,10 @@ Public Function Clone() As WebRequest
     Set Clone.UrlSegments = WebHelpers.CloneDictionary(Me.UrlSegments)
     Set Clone.Cookies = WebHelpers.CloneCollection(Me.Cookies)
 
-    If VBA.IsObject(web_pBody) Then
-        Set Clone.Body = web_pBody
+    If VBA.IsObject(This.Body) Then
+        Set Clone.Body = This.Body
     Else
-        Clone.Body = web_pBody
+        Clone.Body = This.Body
     End If
 End Function
 
@@ -896,16 +942,16 @@ End Function
 Public Sub CreateFromOptions(Options As Dictionary)
     If Not Options Is Nothing Then
         If Options.Exists("Headers") Then
-            Set Me.Headers = Options("Headers")
+            Set Me.Headers = Options.Item("Headers")
         End If
         If Options.Exists("Cookies") Then
-            Set Me.Cookies = Options("Cookies")
+            Set Me.Cookies = Options.Item("Cookies")
         End If
         If Options.Exists("QuerystringParams") Then
-            Set Me.QuerystringParams = Options("QuerystringParams")
+            Set Me.QuerystringParams = Options.Item("QuerystringParams")
         End If
         If Options.Exists("UrlSegments") Then
-            Set Me.UrlSegments = Options("UrlSegments")
+            Set Me.UrlSegments = Options.Item("UrlSegments")
         End If
     End If
 End Sub
@@ -965,8 +1011,8 @@ End Function
 
 Private Sub Class_Initialize()
     ' Set default values
-    Me.RequestFormat = WebFormat.Json
-    Me.ResponseFormat = WebFormat.Json
+    Me.RequestFormat = VbWebFormat.vbWebFormatJson
+    Me.ResponseFormat = VbWebFormat.vbWebFormatCustom
     Me.UserAgent = WebUserAgent
 
     Set Me.Headers = New Collection
@@ -975,3 +1021,4 @@ Private Sub Class_Initialize()
     Set Me.Cookies = New Collection
     Me.ContentLength = -1
 End Sub
+

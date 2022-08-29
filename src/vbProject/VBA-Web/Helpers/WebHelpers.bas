@@ -1,6 +1,6 @@
 Attribute VB_Name = "WebHelpers"
 ''
-' WebHelpers v4.1.6
+' WebHelpers v4.2.0
 ' (c) Tim Hall - https://github.com/VBA-tools/VBA-Web
 '
 ' Contains general-purpose helpers that are used throughout VBA-Web. Includes:
@@ -20,11 +20,10 @@ Attribute VB_Name = "WebHelpers"
 ' 11001 - Error during conversion
 ' 11002 - No matching converter has been registered
 ' 11003 - Error while getting url parts
-' 11099 - XML format is not currently supported
 '
 ' @module WebHelpers
 ' @author tim.hall.engr@gmail.com
-' @author: Andrew Pullon | andrew.pullon@radiuscore.co.nz | andrewcpullon@gmail.com
+' @author Andrew Pullon | andrew.pullon@radiuscore.co.nz | andrewcpullon@gmail.com
 ' @license MIT (http://www.opensource.org/licenses/mit-license.php)
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 ' VBA-Git Annotations
@@ -213,22 +212,22 @@ Private web_pConverters As Dictionary
 ' @param ServiceUnavailable `503`
 ' @param GatewayTimeout `504`
 ''
-Public Enum WebStatusCode
-    Ok = 200
-    Created = 201
-    NoContent = 204
-    NotModified = 304
-    BadRequest = 400
-    Unauthorized = 401
-    Forbidden = 403
-    NotFound = 404
-    RequestTimeout = 408
-    UnsupportedMediaType = 415
-	TooManyRequests = 429
-    InternalServerError = 500
-    BadGateway = 502
-    ServiceUnavailable = 503
-    GatewayTimeout = 504
+Public Enum VbWebStatusCode
+    vbWebStatusOk = 200
+    vbWebStatusCreated = 201
+    vbWebStatusNoContent = 204
+    vbWebStatusNotModified = 304
+    vbWebStatusBadRequest = 400
+    vbWebStatusUnauthorized = 401
+    vbWebStatusForbidden = 403
+    vbWebStatusNotFound = 404
+    vbWebStatusRequestTimeout = 408
+    vbWebStatusUnsupportedMediaType = 415
+    vbWebStatusTooManyRequests = 429
+    vbWebStatusInternalServerError = 500
+    vbWebStatusBadGateway = 502
+    vbWebStatusServiceUnavailable = 503
+    vbWebStatusGatewayTimeout = 504
 End Enum
 
 ''
@@ -259,11 +258,11 @@ End Enum
 ' @default PlainText
 ''
 Public Enum VbWebFormat
-    vbWebPlainText = 0
-    vbWebJson = 1
-    vbWebFormUrlEncoded = 2
-    vbWebXML = 3
-    vbWebCustom = 9
+    vbWebFormatPlainText = 0
+    vbWebFormatJson = 1
+    vbWebFormatFormUrlEncoded = 2
+    vbWebFormatXml = 3
+    vbWebFormatCustom = 9
 End Enum
 
 ''
@@ -276,12 +275,12 @@ End Enum
 '   "/" / ":" / "<" / "=" / ">" / "?" / "@" / "[" / "]" / "^" / "`" / "{" / "|" / "}"
 ' @param PathUrlEncoding strict / "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "=" / ":" / "@"
 ''
-Public Enum UrlEncodingMode
-    StrictUrlEncoding
-    FormUrlEncoding
-    QueryUrlEncoding
-    CookieUrlEncoding
-    PathUrlEncoding
+Public Enum VbUrlEncodingMode
+    vbUrlEncodingStrict
+    vbUrlEncodingForm
+    vbUrlEncodingQuery
+    vbUrlEncodingCookie
+    vbUrlEncodingPath
 End Enum
 
 ''
@@ -550,7 +549,7 @@ End Function
 ' @param {Dictionary|Collection|Variant} Obj Value to convert to Url-Encoded string
 ' @return {String} UrlEncoded string (e.g. a=123&b=456&...)
 ''
-Public Function ConvertToUrlEncoded(Obj As Variant, Optional EncodingMode As UrlEncodingMode = UrlEncodingMode.FormUrlEncoding) As String
+Public Function ConvertToUrlEncoded(Obj As Variant, Optional EncodingMode As VbUrlEncodingMode = VbUrlEncodingMode.vbUrlEncodingForm) As String
     Dim web_Encoded As String
 
     If TypeOf Obj Is Collection Then
@@ -599,13 +598,13 @@ End Function
 '
 ' @method ParseByFormat
 ' @param {String} Value Value to parse
-' @param {WebFormat} Format
+' @param {VbWebFormat} Format
 ' @param {String} [CustomFormat=""] Name of registered custom converter
 ' @param {Variant} [Bytes] Bytes for custom convert (if `ParseType = "Binary"`)
 ' @return {Dictionary|Collection|Object}
 ' @throws 11000 - Error during parsing
 ''
-Public Function ParseByFormat(Value As String, Format As WebFormat, _
+Public Function ParseByFormat(Value As String, Format As VbWebFormat, _
     Optional CustomFormat As String = "", Optional Bytes As Variant) As Object
 
     On Error GoTo web_ErrorHandling
@@ -616,13 +615,13 @@ Public Function ParseByFormat(Value As String, Format As WebFormat, _
     End If
 
     Select Case Format
-    Case WebFormat.Json
+    Case VbWebFormat.vbWebFormatJson
         Set ParseByFormat = ParseJson(Value)
-    Case WebFormat.FormUrlEncoded
+    Case VbWebFormat.vbWebFormatFormUrlEncoded
         Set ParseByFormat = ParseUrlEncoded(Value)
-    Case WebFormat.Xml
+    Case VbWebFormat.vbWebFormatXml
         Set ParseByFormat = ParseXml(Value)
-    Case WebFormat.Custom
+    Case VbWebFormat.vbWebFormatCustom
 #If EnableCustomFormatting Then
         Dim web_Converter As Dictionary
         Dim web_Callback As String
@@ -674,17 +673,17 @@ End Function
 ' @return {Variant}
 ' @throws 11001 - Error during conversion
 ''
-Public Function ConvertToFormat(Obj As Variant, Format As WebFormat, Optional CustomFormat As String = "") As Variant
+Public Function ConvertToFormat(Obj As Variant, Format As VbWebFormat, Optional CustomFormat As String = "") As Variant
     On Error GoTo web_ErrorHandling
 
     Select Case Format
-    Case WebFormat.Json
+    Case VbWebFormat.vbWebFormatJson
         ConvertToFormat = ConvertToJson(Obj)
-    Case WebFormat.FormUrlEncoded
+    Case VbWebFormat.vbWebFormatFormUrlEncoded
         ConvertToFormat = ConvertToUrlEncoded(Obj)
-    Case WebFormat.Xml
+    Case VbWebFormat.vbWebFormatXml
         ConvertToFormat = ConvertToXml(Obj)
-    Case WebFormat.Custom
+    Case VbWebFormat.vbWebFormatCustom
 #If EnableCustomFormatting Then
         Dim web_Converter As Dictionary
         Dim web_Callback As String
@@ -745,7 +744,7 @@ End Function
 ''
 Public Function UrlEncode(Text As Variant, _
     Optional SpaceAsPlus As Boolean = False, Optional EncodeUnsafe As Boolean = True, _
-    Optional EncodingMode As UrlEncodingMode = UrlEncodingMode.StrictUrlEncoding) As String
+    Optional EncodingMode As VbUrlEncodingMode = VbUrlEncodingMode.vbUrlEncodingStrict) As String
 
     If SpaceAsPlus = True Then
         LogWarning "SpaceAsPlus is deprecated and will be removed in VBA-Web v5. " & _
@@ -778,7 +777,7 @@ Public Function UrlEncode(Text As Variant, _
         ' PathUrlEncoding   - strict / "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "=" / ":" / "@"
 
         ' Set space value
-        If SpaceAsPlus Or EncodingMode = UrlEncodingMode.FormUrlEncoding Then
+        If SpaceAsPlus Or EncodingMode = VbUrlEncodingMode.vbUrlEncodingForm Then
             web_Space = "+"
         Else
             web_Space = "%20"
@@ -811,7 +810,7 @@ Public Function UrlEncode(Text As Variant, _
                     ' "!" / "$" / "&" / "'" / "(" / ")" / "+" / ":" / "=" / "@"
                     ' PathUrlEncoding, CookieUrlEncoding -> Unencoded
                     ' Else -> Percent-encoded
-                    If EncodingMode = UrlEncodingMode.PathUrlEncoding Or EncodingMode = UrlEncodingMode.CookieUrlEncoding Then
+                    If EncodingMode = VbUrlEncodingMode.vbUrlEncodingPath Or EncodingMode = VbUrlEncodingMode.vbUrlEncodingCookie Then
                         web_Result(web_i) = web_Char
                     Else
                         web_Result(web_i) = "%" & VBA.Hex(web_CharCode)
@@ -821,7 +820,7 @@ Public Function UrlEncode(Text As Variant, _
                     ' "#" / "-" / "." / "/" / "<" / ">" / "?" / "[" / "]" / "^" / "_" / "`" / "{" / "|" / "}"
                     ' CookieUrlEncoding -> Unencoded
                     ' Else -> Percent-encoded
-                    If EncodingMode = UrlEncodingMode.CookieUrlEncoding Then
+                    If EncodingMode = VbUrlEncodingMode.vbUrlEncodingCookie Then
                         web_Result(web_i) = web_Char
                     Else
                         web_Result(web_i) = "%" & VBA.Hex(web_CharCode)
@@ -831,9 +830,9 @@ Public Function UrlEncode(Text As Variant, _
                     ' "*"
                     ' FormUrlEncoding, PathUrlEncoding, CookieUrlEncoding -> "*"
                     ' Else -> "%2A"
-                    If EncodingMode = UrlEncodingMode.FormUrlEncoding _
-                        Or EncodingMode = UrlEncodingMode.PathUrlEncoding _
-                        Or EncodingMode = UrlEncodingMode.CookieUrlEncoding Then
+                    If EncodingMode = VbUrlEncodingMode.vbUrlEncodingForm _
+                        Or EncodingMode = VbUrlEncodingMode.vbUrlEncodingPath _
+                        Or EncodingMode = VbUrlEncodingMode.vbUrlEncodingCookie Then
 
                         web_Result(web_i) = web_Char
                     Else
@@ -844,7 +843,7 @@ Public Function UrlEncode(Text As Variant, _
                     ' "," / ";"
                     ' PathUrlEncoding -> Unencoded
                     ' Else -> Percent-encoded
-                    If EncodingMode = UrlEncodingMode.PathUrlEncoding Then
+                    If EncodingMode = VbUrlEncodingMode.vbUrlEncodingPath Then
                         web_Result(web_i) = web_Char
                     Else
                         web_Result(web_i) = "%" & VBA.Hex(web_CharCode)
@@ -854,7 +853,7 @@ Public Function UrlEncode(Text As Variant, _
                     ' "~"
                     ' FormUrlEncoding, QueryUrlEncoding -> "%7E"
                     ' Else -> "~"
-                    If EncodingMode = UrlEncodingMode.FormUrlEncoding Or EncodingMode = UrlEncodingMode.QueryUrlEncoding Then
+                    If EncodingMode = VbUrlEncodingMode.vbUrlEncodingForm Or EncodingMode = VbUrlEncodingMode.vbUrlEncodingQuery Then
                         web_Result(web_i) = "%7E"
                     Else
                         web_Result(web_i) = web_Char
@@ -894,7 +893,7 @@ End Function
 ''
 Public Function UrlDecode(Encoded As String, _
     Optional PlusAsSpace As Boolean = True, _
-    Optional EncodingMode As UrlEncodingMode = UrlEncodingMode.StrictUrlEncoding) As String
+    Optional EncodingMode As VbUrlEncodingMode = VbUrlEncodingMode.vbUrlEncodingStrict) As String
 
     Dim web_StringLen As Long
     web_StringLen = VBA.Len(Encoded)
@@ -909,8 +908,8 @@ Public Function UrlDecode(Encoded As String, _
 
             If web_Temp = "+" And _
                 (PlusAsSpace _
-                 Or EncodingMode = UrlEncodingMode.FormUrlEncoding _
-                 Or EncodingMode = UrlEncodingMode.QueryUrlEncoding) Then
+                 Or EncodingMode = VbUrlEncodingMode.vbUrlEncodingForm _
+                 Or EncodingMode = VbUrlEncodingMode.vbUrlEncodingQuery) Then
 
                 web_Temp = " "
             ElseIf web_Temp = "%" And web_StringLen >= web_i + 2 Then
@@ -1485,19 +1484,19 @@ End Function
 ' Get the media-type for the given format / custom format.
 '
 ' @method FormatToMediaType
-' @param {WebFormat} Format
+' @param {VbWebFormat} Format
 ' @param {String} [CustomFormat] Needed if `Format = WebFormat.Custom`
 ' @return {String}
 ''
-Public Function FormatToMediaType(Format As WebFormat, Optional CustomFormat As String) As String
+Public Function FormatToMediaType(Format As VbWebFormat, Optional CustomFormat As String) As String
     Select Case Format
-    Case WebFormat.FormUrlEncoded
+    Case VbWebFormat.vbWebFormatFormUrlEncoded
         FormatToMediaType = "application/x-www-form-urlencoded;charset=UTF-8"
-    Case WebFormat.Json
+    Case VbWebFormat.vbWebFormatJson
         FormatToMediaType = "application/json"
-    Case WebFormat.Xml
+    Case VbWebFormat.vbWebFormatXml
         FormatToMediaType = "application/xml"
-    Case WebFormat.Custom
+    Case VbWebFormat.vbWebFormatCustom
         FormatToMediaType = web_GetConverter(CustomFormat)("MediaType")
     Case Else
         FormatToMediaType = "text/plain"
@@ -1509,27 +1508,27 @@ End Function
 '
 ' @example
 ' ```VB.net
-' WebHelpers.MethodToName WebMethod.HttpPost
+' WebHelpers.MethodToName VbWebMethod.vbWebHttpPost
 ' ' -> "POST"
 ' ```
 '
 ' @method MethodToName
-' @param {WebMethod} Method
+' @param {VbWebMethod} Method
 ' @return {String}
 ''
-Public Function MethodToName(Method As WebMethod) As String
+Public Function MethodToName(Method As VbWebMethod) As String
     Select Case Method
-    Case WebMethod.HttpDelete
+    Case VbWebMethod.vbWebHttpDelete
         MethodToName = "DELETE"
-    Case WebMethod.HttpPut
+    Case VbWebMethod.vbWebHttpPut
         MethodToName = "PUT"
-    Case WebMethod.HttpPatch
+    Case VbWebMethod.vbWebHttpPatch
         MethodToName = "PATCH"
-    Case WebMethod.HttpPost
+    Case VbWebMethod.vbWebHttpPost
         MethodToName = "POST"
-    Case WebMethod.HttpGet
+    Case VbWebMethod.vbWebHttpGet
         MethodToName = "GET"
-    Case WebMethod.HttpHead
+    Case VbWebMethod.vbWebHttpHead
         MethodToName = "HEAD"
     End Select
 End Function
@@ -2029,7 +2028,7 @@ End Function
 ' ============================================= '
 
 ' Helper for url-encoded to create key=value pair
-Private Function web_GetUrlEncodedKeyValue(Key As Variant, Value As Variant, Optional EncodingMode As UrlEncodingMode = UrlEncodingMode.FormUrlEncoding) As String
+Private Function web_GetUrlEncodedKeyValue(Key As Variant, Value As Variant, Optional EncodingMode As VbUrlEncodingMode = VbUrlEncodingMode.vbUrlEncodingForm) As String
     Select Case VBA.VarType(Value)
     Case VBA.vbBoolean
         ' Convert boolean to lowercase

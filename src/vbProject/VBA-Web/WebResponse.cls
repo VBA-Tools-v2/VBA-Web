@@ -61,7 +61,7 @@ Private web_CrLf As String
 ' @property StatusCode
 ' @type WebStatusCode
 ''
-Public StatusCode As WebStatusCode
+Public StatusCode As VbWebStatusCode
 
 ''
 ' Status string that the server returned (e.g. `404 -> "Not Found"`)
@@ -296,7 +296,7 @@ Public Function ExtractCookies(Headers As Collection) As Collection
                     web_Value = VBA.Mid$(web_Value, 2, VBA.Len(web_Value) - 2)
                 End If
 
-                web_Cookies.Add WebHelpers.CreateKeyValue(web_Key, WebHelpers.UrlDecode(web_Value, PlusAsSpace:=False, EncodingMode:=UrlEncodingMode.CookieUrlEncoding))
+                web_Cookies.Add WebHelpers.CreateKeyValue(web_Key, WebHelpers.UrlDecode(web_Value, PlusAsSpace:=False, EncodingMode:=VbUrlEncodingMode.vbUrlEncodingCookie))
             Else
                 WebHelpers.LogWarning _
                     "Unrecognized cookie format: " & web_Cookie, "WebResponse.ExtractCookies"
@@ -313,7 +313,7 @@ End Function
 
 Private Sub web_LoadValues(web_Headers As String, web_Content As String, web_Body As Variant, web_Request As WebRequest)
     ' Convert content to data by format
-    If web_Request.ResponseFormat <> WebFormat.PlainText Then
+    If web_Request.ResponseFormat <> VbWebFormat.vbWebFormatPlainText Then
         On Error Resume Next
         Set Me.Data = _
             WebHelpers.ParseByFormat(web_Content, web_Request.ResponseFormat, web_Request.CustomResponseFormat, web_Body)
@@ -418,3 +418,4 @@ Private Sub Class_Initialize()
     Set Headers = New Collection
     Set Cookies = New Collection
 End Sub
+
