@@ -22,6 +22,7 @@ Attribute VB_Name = "JsonConverter"
 ' https://rubberduckvba.com/ | https://github.com/rubberduck-vba/Rubberduck/
 '
 '@folder VBA-Web.Helpers
+'@ignoremodule
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit
 Option Private Module
@@ -65,7 +66,7 @@ Public Function ParseJson(ByVal JsonString As String) As Object
     json_Index = 1
 
     ' Remove vbCr, vbLf, and vbTab from json_String
-    JsonString = VBA.Replace(VBA.Replace(VBA.Replace(JsonString, VBA.vbCr, ""), VBA.vbLf, ""), VBA.vbTab, "")
+    JsonString = VBA.Replace(VBA.Replace(VBA.Replace(JsonString, VBA.vbCr, vbNullString), VBA.vbLf, vbNullString), VBA.vbTab, vbNullString)
 
     json_SkipSpaces JsonString, json_Index
     Select Case VBA.Mid$(JsonString, json_Index, 1)
@@ -478,7 +479,7 @@ Private Function json_ParseString(json_String As String, ByRef json_Index As Lon
                 ' Unicode character escape (e.g. \u00a9 = Copyright)
                 json_Index = json_Index + 1
                 json_Code = VBA.Mid$(json_String, json_Index, 4)
-                json_BufferAppend json_Buffer, VBA.ChrW(VBA.Val("&h" + json_Code)), json_BufferPosition, json_BufferLength
+                json_BufferAppend json_Buffer, VBA.ChrW$(VBA.Val("&h" + json_Code)), json_BufferPosition, json_BufferLength
                 json_Index = json_Index + 4
             End Select
         Case json_Quote

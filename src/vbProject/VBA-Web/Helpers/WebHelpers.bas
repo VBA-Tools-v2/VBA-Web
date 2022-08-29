@@ -20,11 +20,10 @@ Attribute VB_Name = "WebHelpers"
 ' 11001 - Error during conversion
 ' 11002 - No matching converter has been registered
 ' 11003 - Error while getting url parts
-' 11099 - XML format is not currently supported
 '
 ' @module WebHelpers
 ' @author tim.hall.engr@gmail.com
-' @author: Andrew Pullon | andrew.pullon@radiuscore.co.nz | andrewcpullon@gmail.com
+' @author Andrew Pullon | andrew.pullon@radiuscore.co.nz | andrewcpullon@gmail.com
 ' @license MIT (http://www.opensource.org/licenses/mit-license.php)
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 ' VBA-Git Annotations

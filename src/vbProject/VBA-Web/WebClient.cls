@@ -829,3 +829,4 @@ Private Sub Class_Initialize()
     Me.UseXmlClient = False
     Me.WaitLoop = True
 End Sub
+

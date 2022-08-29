@@ -10,6 +10,7 @@ Attribute VB_Name = "test_JsonXmlConverter"
 '
 '@testmodule
 '@folder VBA-Web.Helpers.Tests
+'@ignoremodule
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit
 Option Private Module

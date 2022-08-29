@@ -55,6 +55,7 @@ Attribute VB_Name = "XmlConverter"
 ' https://rubberduckvba.com/ | https://github.com/rubberduck-vba/Rubberduck/
 '
 '@folder VBA-Web.Helpers
+'@ignoremodule
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit
 Option Private Module
