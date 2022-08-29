@@ -367,7 +367,7 @@ Public Property Let CustomResponseFormat(Value As String)
         web_pConvertedBody = Empty
 
         If Not Value = vbNullString Then
-            ResponseFormat = WebFormat.Custom
+            ResponseFormat = VbWebFormat.vbWebFormatCustom
         End If
     End If
 End Property
@@ -547,7 +547,7 @@ End Property
 ''
 Public Property Get FormattedResource() As String
     Dim web_Segment As Variant
-    Dim web_Encoding As UrlEncodingMode
+    Dim web_Encoding As VbUrlEncodingMode
 
     FormattedResource = Me.Resource
 
@@ -569,10 +569,10 @@ Public Property Get FormattedResource() As String
         '
         ' If the request format is explicitly form-urlencoded, use FormUrlEncoding (space -> "+")
         ' otherwise, use subset of RFC 3986 and form-urlencoded that should work for both cases (space -> "%20")
-        If Me.RequestFormat = WebFormat.FormUrlEncoded Then
-            web_Encoding = UrlEncodingMode.FormUrlEncoding
+        If Me.RequestFormat = VbWebFormat.vbWebFormatFormUrlEncoded Then
+            web_Encoding = VbUrlEncodingMode.vbUrlEncodingForm
         Else
-            web_Encoding = UrlEncodingMode.QueryUrlEncoding
+            web_Encoding = VbUrlEncodingMode.vbUrlEncodingQuery
         End If
         FormattedResource = FormattedResource & WebHelpers.ConvertToUrlEncoded(Me.QuerystringParams, EncodingMode:=web_Encoding)
     End If
@@ -712,7 +712,7 @@ End Sub
 Public Sub AddCookie(Key As String, Value As Variant)
     Me.Cookies.Add WebHelpers.CreateKeyValue( _
         web_EncodeCookieName(Key), _
-        WebHelpers.UrlEncode(Value, EncodingMode:=UrlEncodingMode.CookieUrlEncoding) _
+        WebHelpers.UrlEncode(Value, EncodingMode:=VbUrlEncodingMode.vbUrlEncodingCookie) _
     )
 End Sub
 
@@ -746,7 +746,7 @@ Public Sub AddBodyNode(ByVal Name As String, Optional ByVal Value As Variant = N
     Dim web_Attributes As Collection
     Dim web_ErrorDescription As String
     
-    If Not Me.Format = WebFormat.Xml Then
+    If Not Me.Format = VbWebFormat.vbWebFormatXml Then
         web_ErrorDescription = "Can only add body node to an XML body. Set Format = `WebFormat.XML` and try again."
         
         WebHelpers.LogError web_ErrorDescription, "WebRequest.AddBodyNode", 11021 + vbObjectError
