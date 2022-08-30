@@ -1012,7 +1012,7 @@ End Function
 Private Sub Class_Initialize()
     ' Set default values
     Me.RequestFormat = VbWebFormat.vbWebFormatJson
-    Me.ResponseFormat = VbWebFormat.vbWebFormatCustom
+    Me.ResponseFormat = VbWebFormat.vbWebFormatJson
     Me.UserAgent = WebUserAgent
 
     Set Me.Headers = New Collection
