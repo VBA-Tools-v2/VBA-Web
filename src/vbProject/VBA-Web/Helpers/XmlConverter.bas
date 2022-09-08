@@ -393,7 +393,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
         ' Prolog (windows only)
         ElseIf VBA.TypeName(XmlValue) = "IXMLDOMProcessingInstruction" Then
             ' Manually parse prolog, as using `XML` property results in lost data (i.e. encoding).
-            xml_BufferAppend xml_Buffer, "<?xml ", xml_BufferPosition, xml_BufferLength
+            xml_BufferAppend xml_Buffer, "<?" & XmlValue.nodeName & " ", xml_BufferPosition, xml_BufferLength
             xml_BufferAppend xml_Buffer, XmlValue.Text, xml_BufferPosition, xml_BufferLength
             xml_BufferAppend xml_Buffer, "?>", xml_BufferPosition, xml_BufferLength
             xml_BufferAppend xml_Buffer, vbNewLine, xml_BufferPosition, xml_BufferLength ' Always put prolog on its own line.
