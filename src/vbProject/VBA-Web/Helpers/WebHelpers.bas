@@ -684,11 +684,13 @@ Public Function ConvertToFormat(Obj As Variant, Format As VbWebFormat, Optional 
         ConvertToFormat = ConvertToUrlEncoded(Obj)
     Case VbWebFormat.vbWebFormatXml
         ConvertToFormat = ConvertToXml(Obj)
-    Case VbWebFormat.vbWebFormatBinary
-        Select Case VBA.TypeName(Obj)
+     Case VbWebFormat.vbWebFormatBinary
+        Select Case VBA.VarType(Obj)
         Case vbString
-            ConvertToFormat = VBA.StrConv(Obj, vbUnicode)
-        Case "Byte()"
+            Dim web_Bytes() As Byte
+            web_Bytes = VBA.StrConv(Obj, vbFromUnicode) ' Cast to Byte or type Variant/String is incorrectly returned.
+            ConvertToFormat = web_Bytes
+        Case vbByte, vbArray + vbByte
             ConvertToFormat = Obj
         End Select
     Case VbWebFormat.vbWebFormatCustom
