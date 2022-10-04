@@ -262,6 +262,7 @@ Public Enum VbWebFormat
     vbWebFormatJson = 1
     vbWebFormatFormUrlEncoded = 2
     vbWebFormatXml = 3
+    vbWebFormatBinary = 4
     vbWebFormatCustom = 9
 End Enum
 
@@ -683,6 +684,13 @@ Public Function ConvertToFormat(Obj As Variant, Format As VbWebFormat, Optional 
         ConvertToFormat = ConvertToUrlEncoded(Obj)
     Case VbWebFormat.vbWebFormatXml
         ConvertToFormat = ConvertToXml(Obj)
+    Case VbWebFormat.vbWebFormatBinary
+        Select Case VBA.TypeName(Obj)
+        Case vbString
+            ConvertToFormat = VBA.StrConv(Obj, vbUnicode)
+        Case "Byte()"
+            ConvertToFormat = Obj
+        End Select
     Case VbWebFormat.vbWebFormatCustom
 #If EnableCustomFormatting Then
         Dim web_Converter As Dictionary
@@ -1496,6 +1504,8 @@ Public Function FormatToMediaType(Format As VbWebFormat, Optional CustomFormat A
         FormatToMediaType = "application/json"
     Case VbWebFormat.vbWebFormatXml
         FormatToMediaType = "application/xml"
+    Case VbWebFormat.vbWebFormatBinary
+        FormatToMediaType = "application/octet-stream"
     Case VbWebFormat.vbWebFormatCustom
         FormatToMediaType = web_GetConverter(CustomFormat)("MediaType")
     Case Else

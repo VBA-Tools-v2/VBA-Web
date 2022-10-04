@@ -555,7 +555,7 @@ End Property
 ''
 Public Property Get Body() As Variant
     If Not VBA.IsEmpty(This.Body) Then
-        If VBA.VarType(This.Body) = vbString Then
+        If VBA.VarType(This.Body) = vbString And Not Me.RequestFormat = vbWebFormatBinary Then
             Body = This.Body
         ElseIf VBA.IsEmpty(This.ConvertedBody) Then
             ' Convert body and cache
