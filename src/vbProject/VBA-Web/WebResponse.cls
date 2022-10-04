@@ -313,7 +313,8 @@ End Function
 
 Private Sub web_LoadValues(web_Headers As String, web_Content As String, web_Body As Variant, web_Request As WebRequest)
     ' Convert content to data by format
-    If web_Request.ResponseFormat <> VbWebFormat.vbWebFormatPlainText Then
+    ' TODO - Can we set 'Data' to be the raw bytes if using vbWebFormatBinary?
+    If Not web_Request.ResponseFormat = VbWebFormat.vbWebFormatPlainText And Not web_Request.ResponseFormat = VbWebFormat.vbWebFormatBinary Then
         On Error Resume Next
         Set Me.Data = _
             WebHelpers.ParseByFormat(web_Content, web_Request.ResponseFormat, web_Request.CustomResponseFormat, web_Body)
