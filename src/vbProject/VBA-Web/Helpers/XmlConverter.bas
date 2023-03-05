@@ -183,6 +183,51 @@ Public Function SelectSingleNode(Node As Dictionary, nodeName As String) As Dict
     End If
 End Function
 
+''
+' Helper for use with VBA-XML.
+'
+' Gets the value of the attribute.
+' - Returns the value as a string if the attribute value is a non-empty string.
+' - Returns Null if the named attribute does not have a specified value or does not exist.
+'
+' @param {Dictionary} Node | Node to read attribute from.
+' @param {String} Name | A string specifiying the name of the attribute to return.
+' @return {String} Attribute value.
+''
+Public Function GetAttribute(Node As Dictionary, Name As String) As Variant
+    Dim xml_Attribute As Dictionary
+    GetAttribute = Null
+    If Not Node.Item("attributes") Is Nothing Then
+        For Each xml_Attribute In Node.Item("attributes")
+            If xml_Attribute.Item("name") = Name Then
+                GetAttribute = xml_Attribute.Item("value")
+                Exit Function
+            End If
+        Next xml_Attribute
+    End If
+End Function
+
+''
+' Helper for use with VBA-XML.
+'
+' Gets the attribute node.
+'
+' @param {Dictionary} Node | Node to search within.
+' @param {String} Name | A string specifiying the name of the attribute to return.
+' @return {Dictionary} Attribute (if found), else nothing.
+''
+Public Function GetAttributeNode(Node As Dictionary, Name As String) As Dictionary
+    Dim xml_Attribute As Dictionary
+    If Not Node.Item("attributes") Is Nothing Then
+        For Each xml_Attribute In Node.Item("attributes")
+            If xml_Attribute.Item("name") = Name Then
+                Set GetAttributeNode = xml_Attribute
+                Exit Function
+            End If
+        Next xml_Attribute
+    End If
+End Function
+
 ' --------------------------------------------- '
 ' Core Methods
 ' --------------------------------------------- '
