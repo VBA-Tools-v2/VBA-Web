@@ -292,15 +292,30 @@ End Function
 ' Parse Unix timestamp to local date.
 '
 ' @method ParseUnix
-' @param {Long} Unix timestamp
+' @param {Double} Unix timestamp
 ' @return {Date} Local date
 ' @throws 10015 - Unix parsing error
 ''
-Public Function ParseUnix(UnixDate As Long) As Date
+Public Function ParseUnix(UnixDate As Double) As Date
     On Error GoTo utc_ErrorHandling
     
-    ParseUnix = ParseUtc(DateAdd("s", UnixDate, "1/1/1970 00:00:00"))
+    Dim utc_LongMax As Double
+    Dim utc_Step As Long
     
+    utc_LongMax = 2147483647
+    utc_Step = 0
+        
+    ' Although VBA's `DateAdd` function takes a {Double} variable for the `Number` parameter, it returns a `6 - Overflow` error
+    ' if any value higher than 2147483647 (which is the maximum value of a {Long} data type) is passed. To avoid an overflow error,
+    ' we recursively loop in increments of 2147483647.
+    ParseUnix = VBA.DateSerial(1970, 1, 1)
+    Do Until (UnixDate - (utc_LongMax * utc_Step)) < 0
+        ParseUnix = VBA.DateAdd("s", Application.Min((UnixDate - (utc_LongMax * utc_Step)), 2147483647), ParseUnix)
+        utc_Step = utc_Step + 1
+        If utc_Step > 10 Then Err.Raise 6 ' To prevent infinite loop... 10 loops would be circa 2650.
+    Loop
+    
+    ParseUnix = ParseUtc(ParseUnix)
     Exit Function
 
 utc_ErrorHandling:
@@ -312,10 +327,10 @@ End Function
 '
 ' @method ConvertToUnix
 ' @param {Date} LocalDate
-' @return {String} Unix timestamp
+' @return {Double} Unix timestamp
 ' @throws 10016 - Unix conversion error
 ''
-Public Function ConvertToUnix(LocalDate As Date) As Long
+Public Function ConvertToUnix(LocalDate As Date) As Double
     On Error GoTo utc_ErrorHandling
     
     ConvertToUnix = VBA.DateDiff("s", "1/1/1970", ConvertToUtc(LocalDate))
