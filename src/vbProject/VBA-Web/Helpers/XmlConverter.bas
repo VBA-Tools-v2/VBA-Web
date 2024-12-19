@@ -431,7 +431,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             ConvertToXml = xml_BufferToString(xml_Buffer, xml_BufferPosition)
         
         ' MSXML2.DOMDocument (windows only)
-        ElseIf VBA.TypeName(XmlValue) = "DOMDocument" Then
+        ElseIf VBA.TypeName(XmlValue) Like "DOMDocument*" Then
             ' Parse document child nodes.
             ConvertToXml = ConvertToXml(XmlValue.ChildNodes, Whitespace, xml_CurrentIndentation)
         
