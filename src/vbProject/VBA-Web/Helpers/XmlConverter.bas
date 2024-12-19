@@ -450,7 +450,14 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             ' Add 'Start Tag' (incl. attributes).
             xml_BufferAppend xml_Buffer, xml_Indentation & "<", xml_BufferPosition, xml_BufferLength
             xml_BufferAppend xml_Buffer, XmlValue.nodeName, xml_BufferPosition, xml_BufferLength
-            If Not XmlValue.Attributes Is Nothing Then
+            If Not XmlValue.NamespaceURI = vbNullString And Not XmlValue.ParentNode.NamespaceURI = XmlValue.NamespaceURI Then
+                xml_BufferAppend xml_Buffer, " xmlns", xml_BufferPosition, xml_BufferLength
+                If Not XmlValue.Prefix = vbNullString Then xml_BufferAppend xml_Buffer, ":" & XmlValue.Prefix, xml_BufferPosition, xml_BufferLength
+                xml_BufferAppend xml_Buffer, "=""", xml_BufferPosition, xml_BufferLength
+                xml_BufferAppend xml_Buffer, XmlValue.NamespaceURI, xml_BufferPosition, xml_BufferLength
+                xml_BufferAppend xml_Buffer, """", xml_BufferPosition, xml_BufferLength
+            End If
+			If Not XmlValue.Attributes Is Nothing Then
                 For Each xml_Attribute In XmlValue.Attributes
                     xml_BufferAppend xml_Buffer, " ", xml_BufferPosition, xml_BufferLength
                     xml_BufferAppend xml_Buffer, xml_Attribute.Name, xml_BufferPosition, xml_BufferLength
