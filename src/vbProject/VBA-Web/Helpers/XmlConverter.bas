@@ -282,7 +282,7 @@ End Function
 ' @param {Integer|String} Whitespace "Pretty" print xml with given number of spaces per indentation (Integer) or given string
 ' @return {String}
 ''
-Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespace As Variant, Optional ByVal xml_CurrentIndentation As Long = 0) As String
+Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespace As Variant, Optional ByVal xml_CurrentIndentation As Long = 0, Optional ByVal xml_NamespaceURI As String = vbNullString) As String
     Dim xml_Buffer As String
     Dim xml_BufferPosition As Long
     Dim xml_BufferLength As Long
@@ -324,7 +324,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
                     xml_BufferAppend xml_Buffer, XmlValue.Item("prolog"), xml_BufferPosition, xml_BufferLength
                     xml_BufferAppend xml_Buffer, vbNewLine, xml_BufferPosition, xml_BufferLength ' Always put prolog on its own line.
                 End If
-                xml_Converted = ConvertToXml(XmlValue.Item("childNodes"), Whitespace, xml_CurrentIndentation)
+                xml_Converted = ConvertToXml(XmlValue.Item("childNodes"), Whitespace, xml_CurrentIndentation, xml_NamespaceURI)
                 xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                 ConvertToXml = xml_BufferToString(xml_Buffer, xml_BufferPosition)
                 Exit Function
@@ -385,17 +385,17 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
                         End If
                     
                         ' Convert childNodes.
-                        xml_Converted = ConvertToXml(XmlValue.Item("childNodes"), Whitespace, xml_CurrentIndentation + 1)
+                        xml_Converted = ConvertToXml(XmlValue.Item("childNodes"), Whitespace, xml_CurrentIndentation + 1, xml_NamespaceURI)
                         xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                         xml_BufferAppend xml_Buffer, xml_Indentation, xml_BufferPosition, xml_BufferLength
                     Else
                         ' No child nodes, add text.
-                        xml_Converted = ConvertToXml(XmlValue.Item("nodeValue"), Whitespace, xml_CurrentIndentation + 1)
+                        xml_Converted = ConvertToXml(XmlValue.Item("nodeValue"), Whitespace, xml_CurrentIndentation + 1, xml_NamespaceURI)
                         xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                     End If
                 Else
                     ' No child nodes, add text.
-                    xml_Converted = ConvertToXml(XmlValue.Item("nodeValue"), Whitespace, xml_CurrentIndentation + 1)
+                    xml_Converted = ConvertToXml(XmlValue.Item("nodeValue"), Whitespace, xml_CurrentIndentation + 1, xml_NamespaceURI)
                     xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                 End If
                 
@@ -420,7 +420,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
         ElseIf VBA.TypeName(XmlValue) = "Collection" Then
             For Each xml_ChildNode In XmlValue
                 ' Convert node.
-                xml_Converted = ConvertToXml(xml_ChildNode, Whitespace, xml_CurrentIndentation)
+                xml_Converted = ConvertToXml(xml_ChildNode, Whitespace, xml_CurrentIndentation, xml_NamespaceURI)
                 If Not xml_Converted = vbNullString Then
                     xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                 Else
@@ -433,7 +433,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
         ' MSXML2.DOMDocument (windows only)
         ElseIf VBA.TypeName(XmlValue) Like "DOMDocument*" Then
             ' Parse document child nodes.
-            ConvertToXml = ConvertToXml(XmlValue.ChildNodes, Whitespace, xml_CurrentIndentation)
+            ConvertToXml = ConvertToXml(XmlValue.ChildNodes, Whitespace, xml_CurrentIndentation, xml_NamespaceURI)
         
         ' Prolog (windows only)
         ElseIf VBA.TypeName(XmlValue) = "IXMLDOMProcessingInstruction" Then
@@ -446,18 +446,11 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             
         ' Node (windows only)
         ElseIf VBA.TypeName(XmlValue) = "IXMLDOMElement" Then
-        
-            ' Add 'Start Tag' (incl. attributes).
+            
+            ' Add 'Start Tag' (incl. xmlns & attributes).
             xml_BufferAppend xml_Buffer, xml_Indentation & "<", xml_BufferPosition, xml_BufferLength
             xml_BufferAppend xml_Buffer, XmlValue.nodeName, xml_BufferPosition, xml_BufferLength
-            If Not XmlValue.NamespaceURI = vbNullString And Not XmlValue.ParentNode.NamespaceURI = XmlValue.NamespaceURI Then
-                xml_BufferAppend xml_Buffer, " xmlns", xml_BufferPosition, xml_BufferLength
-                If Not XmlValue.Prefix = vbNullString Then xml_BufferAppend xml_Buffer, ":" & XmlValue.Prefix, xml_BufferPosition, xml_BufferLength
-                xml_BufferAppend xml_Buffer, "=""", xml_BufferPosition, xml_BufferLength
-                xml_BufferAppend xml_Buffer, XmlValue.NamespaceURI, xml_BufferPosition, xml_BufferLength
-                xml_BufferAppend xml_Buffer, """", xml_BufferPosition, xml_BufferLength
-            End If
-			If Not XmlValue.Attributes Is Nothing Then
+            If Not XmlValue.Attributes Is Nothing Then
                 For Each xml_Attribute In XmlValue.Attributes
                     xml_BufferAppend xml_Buffer, " ", xml_BufferPosition, xml_BufferLength
                     xml_BufferAppend xml_Buffer, xml_Attribute.Name, xml_BufferPosition, xml_BufferLength
@@ -465,6 +458,13 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
                     xml_BufferAppend xml_Buffer, xml_Encode(xml_Attribute.Value, """"), xml_BufferPosition, xml_BufferLength
                     xml_BufferAppend xml_Buffer, """", xml_BufferPosition, xml_BufferLength
                 Next xml_Attribute
+            End If
+            If Not XmlValue.NamespaceURI = vbNullString And Not XmlValue.NamespaceURI = xml_NamespaceURI Then
+                xml_BufferAppend xml_Buffer, " xmlns", xml_BufferPosition, xml_BufferLength
+                If Not XmlValue.Prefix = vbNullString Then xml_BufferAppend xml_Buffer, ":" & XmlValue.Prefix, xml_BufferPosition, xml_BufferLength
+                xml_BufferAppend xml_Buffer, "=""", xml_BufferPosition, xml_BufferLength
+                xml_BufferAppend xml_Buffer, XmlValue.NamespaceURI, xml_BufferPosition, xml_BufferLength
+                xml_BufferAppend xml_Buffer, """", xml_BufferPosition, xml_BufferLength
             End If
             
             ' Check for void node.
@@ -495,11 +495,11 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
                     Select Case VBA.TypeName(XmlValue.ChildNodes.Item(0))
                     Case "IXMLDOMText"
                         ' Pass value through converter to ensure characters are escaped & converted to text correctly.
-                        xml_Converted = ConvertToXml(XmlValue.Text, Whitespace, xml_CurrentIndentation + 1)
+                        xml_Converted = ConvertToXml(XmlValue.Text, Whitespace, xml_CurrentIndentation + 1, xml_NamespaceURI)
                         xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                     Case "IXMLDOMCDATASection"
                         ' CDATA node doesn't pass through converter, as it does not need escaping.
-                        xml_BufferAppend xml_Buffer, XmlValue.ChildNodes.Item(0).Xml, xml_BufferPosition, xml_BufferLength
+                        xml_BufferAppend xml_Buffer, XmlValue.ChildNodes.Item(0).XML, xml_BufferPosition, xml_BufferLength
                     End Select
                 Else
                     If xml_PrettyPrint Then
@@ -513,13 +513,13 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
                     End If
                 
                     ' Convert childNodes.
-                    xml_Converted = ConvertToXml(XmlValue.ChildNodes, Whitespace, xml_CurrentIndentation + 1)
+                    xml_Converted = ConvertToXml(XmlValue.ChildNodes, Whitespace, xml_CurrentIndentation + 1, XmlValue.NamespaceURI)
                     xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                     xml_BufferAppend xml_Buffer, xml_Indentation, xml_BufferPosition, xml_BufferLength
                 End If
             Else
                 ' No child nodes, add text.
-                xml_Converted = ConvertToXml(XmlValue.Text, Whitespace, xml_CurrentIndentation + 1)
+                xml_Converted = ConvertToXml(XmlValue.Text, Whitespace, xml_CurrentIndentation + 1, xml_NamespaceURI)
                 xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
             End If
             
@@ -545,7 +545,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
         
             For Each xml_ChildNode In XmlValue
                 ' Convert node.
-                xml_Converted = ConvertToXml(xml_ChildNode, Whitespace, xml_CurrentIndentation)
+                xml_Converted = ConvertToXml(xml_ChildNode, Whitespace, xml_CurrentIndentation, xml_NamespaceURI)
                 If Not xml_Converted = vbNullString Then
                     xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                 Else
