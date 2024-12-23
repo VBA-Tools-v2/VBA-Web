@@ -541,7 +541,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             ConvertToXml = xml_BufferToString(xml_Buffer, xml_BufferPosition)
         
         ' Child Nodes (windows only)
-        ElseIf VBA.TypeName(XmlValue) = "IXMLDOMNodeList" Then
+        ElseIf VBA.TypeName(XmlValue) = "IXMLDOMNodeList" Or VBA.TypeName(XmlValue) = "IXMLDOMSelection" Then
         
             For Each xml_ChildNode In XmlValue
                 ' Convert node.
