@@ -1,6 +1,6 @@
 Attribute VB_Name = "XmlConverter"
 ''
-' VBA-XML v0.3.2
+' VBA-XML v0.4.0
 ' (c) Tim Hall - https://github.com/VBA-tools/VBA-XML
 '
 ' XML Converter for VBA
@@ -77,12 +77,19 @@ Private Type xml_Options
     ' Performance suffers (slightly) when including node mapping in object structure.
     IncludeNodeMapping As Boolean
     
-    ' Internal VBA-XML parser is much slower than using `MSXML2.DOMDocument`. By default on Windows
-    ' machines `MSXML2.DOMDocument` is used. Set this option to `True` to force use of VBA-XML.
+    ' Internal VBA-XML parser is much slower than using `MSXML2.DOMDocument` or `CustomXMLParts`.
+    '
+    ' Set this option to `True` to force use of VBA-XML to parse XML strings.
     ' Not recommended if dealing with large XML strings (>1,000,000 char).
+    ForceVbaXmlParser As Boolean
+    
+    ' By default on Windows, `MSXML2.DOMDocument` is used to parse XML. Set this option to `True` to force
+    ' use of CustomXMLParts to parse XML data instead. This allows for consistent object type response
+    ' when engaging with cross-platform development.
     '
     ' This option has no effect on Mac machines.
-    ForceVbaXml As Boolean
+    ' This option will be ignored if `ForceVbaXmlToParse` is TRUE.
+    UseCustomXmlInsteadOfDomDocument As Boolean
 End Type
 
 Public XmlOptions As xml_Options
@@ -233,11 +240,17 @@ End Function
 ' --------------------------------------------- '
 
 ''
-' Convert XML string to Dictionary or DOMDocument (windows only).
+' Convert XML string to Dictionary (VBA-XML) or DOMDocument (windows only) or CustomXMLPart (Mac or Windows).
+' By default:
+'  - Windows:={DOMDocument}. See: https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms761358(v=vs.85)
+'  - Mac:={CustomXMLPart}. See: https://learn.microsoft.com/en-us/office/vba/api/office.customxmlparts
+'
+' Set flag `ForceVbaXmlParser`:=True to use internal parser and return a {Dictionary}. Supports both Windows & Mac.
+' Set flag `UseCustomXmlInsteadOfDomDocument`:=True to return a {CustomXMLPart} on Windows.
 '
 ' @method ParseXml
 ' @param {String} XmlString
-' @return {DOMDocument|Dictionary}
+' @return {DOMDocument|CustomXMLPart|Dictionary}
 ''
 Public Function ParseXml(ByVal XmlString As String) As Object
     Dim xml_Index As Long
@@ -248,16 +261,7 @@ Public Function ParseXml(ByVal XmlString As String) As Object
         ' Error: Invalid XML string
         Err.Raise 10101, "XMLConverter", xml_ParseErrorMessage(XmlString, xml_Index, "Expecting '<'")
     Else
-#If Mac Then
-        Set ParseXml = New Dictionary
-        ParseXml.Add "prolog", xml_ParseProlog(XmlString, xml_Index)
-        ParseXml.Add "doctype", xml_ParseDoctype(XmlString, xml_Index)
-        ParseXml.Add "nodeName", "#document"
-        ParseXml.Add "attributes", Nothing
-        ParseXml.Add "childNodes", New Collection
-        ParseXml.Item("childNodes").Add xml_ParseNode(XmlString, xml_Index, VBA.IIf(XmlOptions.IncludeNodeMapping, ParseXml, Nothing))
-#Else
-        If XmlOptions.ForceVbaXml Then
+        If XmlOptions.ForceVbaXmlParser Then
             Set ParseXml = New Dictionary
             ParseXml.Add "prolog", xml_ParseProlog(XmlString, xml_Index)
             ParseXml.Add "doctype", xml_ParseDoctype(XmlString, xml_Index)
@@ -266,19 +270,26 @@ Public Function ParseXml(ByVal XmlString As String) As Object
             ParseXml.Add "childNodes", New Collection
             ParseXml.Item("childNodes").Add xml_ParseNode(XmlString, xml_Index, VBA.IIf(XmlOptions.IncludeNodeMapping, ParseXml, Nothing))
         Else
-            Set ParseXml = CreateObject("MSXML2.DOMDocument")
-            ParseXml.Async = False
-            ParseXml.LoadXml XmlString
-        End If
+#If Mac Then
+            Set ParseXml = ThisWorkbook.CustomXMLParts.Add(XmlString)
+#Else
+            If XmlOptions.UseCustomXmlInsteadOfDomDocument Then
+                Set ParseXml = ThisWorkbook.CustomXMLParts.Add(XmlString)
+            Else
+                Set ParseXml = CreateObject("MSXML2.DOMDocument")
+                ParseXml.Async = False
+                ParseXml.LoadXml XmlString
+            End If
 #End If
+        End If
     End If
 End Function
 
 ''
-' Convert object (Dictionary/Collection/DOMDocument) to XML string.
+' Convert object (Dictionary/Collection/DOMDocument/CustomXML) to XML string.
 '
 ' @method ConvertToXml
-' @param {Variant} XmlValue (Dictionary, Collection, or DOMDocument)
+' @param {Variant} XmlValue (Dictionary, Collection, DOMDocument, or CustomXML)
 ' @param {Integer|String} Whitespace "Pretty" print xml with given number of spaces per indentation (Integer) or given string
 ' @return {String}
 ''
@@ -291,6 +302,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
     Dim xml_Converted As String
     Dim xml_ChildNode As Variant
     Dim xml_Attribute As Variant
+    Dim xml_ChildNodeCount As Long
     
     xml_PrettyPrint = Not IsMissing(Whitespace)
     
@@ -316,7 +328,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             End If
         End If
         
-        ' Dictionary (Node).
+        ' Dictionary (VBA-XML Document/Node).
         If VBA.TypeName(XmlValue) = "Dictionary" Then
             ' If root node, parse prolog and child nodes then exit.
             If XmlValue.Item("nodeName") = "#document" Then
@@ -416,7 +428,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             End If
             ConvertToXml = xml_BufferToString(xml_Buffer, xml_BufferPosition)
         
-        ' Collection (child nodes)
+        ' Collection (VBA-XML child nodes)
         ElseIf VBA.TypeName(XmlValue) = "Collection" Then
             For Each xml_ChildNode In XmlValue
                 ' Convert node.
@@ -430,12 +442,19 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             
             ConvertToXml = xml_BufferToString(xml_Buffer, xml_BufferPosition)
         
-        ' MSXML2.DOMDocument (windows only)
+        ' Document (DOMDocument)
         ElseIf VBA.TypeName(XmlValue) Like "DOMDocument*" Then
             ' Parse document child nodes.
             ConvertToXml = ConvertToXml(XmlValue.ChildNodes, Whitespace, xml_CurrentIndentation, xml_NamespaceURI)
         
-        ' Prolog (windows only)
+        ' Document (CustomXMLPart)
+        ElseIf VBA.TypeName(XmlValue) = "CustomXMLPart" Then
+            ' Parse document child nodes.
+            ConvertToXml = ConvertToXml(XmlValue.DocumentElement, Whitespace, xml_CurrentIndentation, xml_NamespaceURI)
+                
+        ' Prolog (windows only).
+        ' TODO - Might need to combine this with the `Node` case and use `NodeType` to conditionally parse, as CustomXML doesn't have a different TypeName for this node type.
+        ' NodeType = `NODE_PROCESSING_INSTRUCTION `\`msoCustomXMLNodeProcessingInstruction` = 7
         ElseIf VBA.TypeName(XmlValue) = "IXMLDOMProcessingInstruction" Then
             ' Manually parse prolog, as using `XML` property results in lost data (i.e. encoding).
             xml_BufferAppend xml_Buffer, "<?" & XmlValue.nodeName & " ", xml_BufferPosition, xml_BufferLength
@@ -444,27 +463,28 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             xml_BufferAppend xml_Buffer, vbNewLine, xml_BufferPosition, xml_BufferLength ' Always put prolog on its own line.
             ConvertToXml = xml_BufferToString(xml_Buffer, xml_BufferPosition)
             
-        ' Node (windows only)
-        ElseIf VBA.TypeName(XmlValue) = "IXMLDOMElement" Then
+        ' Node (DOMDocument/CustomXml)
+        ElseIf VBA.TypeName(XmlValue) = "IXMLDOMElement" Or VBA.TypeName(XmlValue) = "CustomXMLNode" Then
             
             ' Add 'Start Tag' (incl. xmlns & attributes).
             xml_BufferAppend xml_Buffer, xml_Indentation & "<", xml_BufferPosition, xml_BufferLength
-            xml_BufferAppend xml_Buffer, XmlValue.nodeName, xml_BufferPosition, xml_BufferLength
+            xml_BufferAppend xml_Buffer, XmlValue.BaseName, xml_BufferPosition, xml_BufferLength
             If Not XmlValue.Attributes Is Nothing Then
                 For Each xml_Attribute In XmlValue.Attributes
-                    xml_BufferAppend xml_Buffer, " ", xml_BufferPosition, xml_BufferLength
-                    xml_BufferAppend xml_Buffer, xml_Attribute.Name, xml_BufferPosition, xml_BufferLength
-                    xml_BufferAppend xml_Buffer, "=""", xml_BufferPosition, xml_BufferLength
-                    xml_BufferAppend xml_Buffer, xml_Encode(xml_Attribute.Value, """"), xml_BufferPosition, xml_BufferLength
-                    xml_BufferAppend xml_Buffer, """", xml_BufferPosition, xml_BufferLength
+                    If VBA.TypeName(xml_Attribute) = "CustomXMLNode" Then
+                        xml_Converted = " " & xml_Attribute.BaseName & "=""" & xml_Encode(xml_Attribute.NodeValue, """") & """"
+                    Else
+                        xml_Converted = " " & xml_Attribute.Name & "=""" & xml_Encode(xml_Attribute.Value, """") & """"
+                    End If
+                    ' Don't print attribute if it is the namespace. DOMDocument has been observed to have the namespace as an attribute.
+                    If Not VBA.Left$(xml_Converted, 6) = " xmlns" Then xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                 Next xml_Attribute
             End If
             If Not XmlValue.NamespaceURI = vbNullString And Not XmlValue.NamespaceURI = xml_NamespaceURI Then
-                xml_BufferAppend xml_Buffer, " xmlns", xml_BufferPosition, xml_BufferLength
-                If Not XmlValue.Prefix = vbNullString Then xml_BufferAppend xml_Buffer, ":" & XmlValue.Prefix, xml_BufferPosition, xml_BufferLength
-                xml_BufferAppend xml_Buffer, "=""", xml_BufferPosition, xml_BufferLength
-                xml_BufferAppend xml_Buffer, XmlValue.NamespaceURI, xml_BufferPosition, xml_BufferLength
-                xml_BufferAppend xml_Buffer, """", xml_BufferPosition, xml_BufferLength
+                xml_Converted = " xmlns"
+                If VBA.TypeName(XmlValue) = "IXMLDOMElement" Then xml_Converted = xml_Converted & VBA.IIf(Not XmlValue.Prefix = vbNullString, ":" & XmlValue.Prefix, vbNullString)
+                xml_Converted = xml_Converted & "=""" & XmlValue.NamespaceURI & """"
+                xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
             End If
             
             ' Check for void node.
@@ -488,16 +508,18 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             End If
             
             ' Add node content.
-            If XmlValue.ChildNodes.Length > 0 Then
+            If VBA.TypeName(XmlValue) = "IXMLDOMElement" Then xml_ChildNodeCount = XmlValue.ChildNodes.Length
+            If VBA.TypeName(XmlValue) = "CustomXMLNode" Then xml_ChildNodeCount = XmlValue.ChildNodes.Count
+            If xml_ChildNodeCount > 0 Then
                 ' Child node represents the node's text. treat as though it has no child nodes and just add text.
-                If XmlValue.ChildNodes.Length = 1 And _
-                    (VBA.TypeName(XmlValue.ChildNodes.Item(0)) = "IXMLDOMText" Or VBA.TypeName(XmlValue.ChildNodes.Item(0)) = "IXMLDOMCDATASection") Then
-                    Select Case VBA.TypeName(XmlValue.ChildNodes.Item(0))
-                    Case "IXMLDOMText"
+                If xml_ChildNodeCount = 1 And _
+                    (XmlValue.FirstChild.NodeType = 3 Or XmlValue.FirstChild.NodeType = 4) Then ' 3 = `NODE_TEXT` & `msoCustomXMLNodeText`. 4 = `NODE_CDATA_SECTION` & `msoCustomXMLNodeCData`
+                    Select Case XmlValue.FirstChild.NodeType
+                    Case 3 ' `NODE_TEXT` & `msoCustomXMLNodeText`
                         ' Pass value through converter to ensure characters are escaped & converted to text correctly.
                         xml_Converted = ConvertToXml(XmlValue.Text, Whitespace, xml_CurrentIndentation + 1, xml_NamespaceURI)
                         xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
-                    Case "IXMLDOMCDATASection"
+                    Case 4 ' `NODE_CDATA_SECTION` & `msoCustomXMLNodeCData`
                         ' CDATA node doesn't pass through converter, as it does not need escaping.
                         xml_BufferAppend xml_Buffer, XmlValue.ChildNodes.Item(0).XML, xml_BufferPosition, xml_BufferLength
                     End Select
@@ -525,7 +547,7 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             
             ' Add 'End Tag'.
             xml_BufferAppend xml_Buffer, "</", xml_BufferPosition, xml_BufferLength
-            xml_BufferAppend xml_Buffer, XmlValue.nodeName, xml_BufferPosition, xml_BufferLength
+            xml_BufferAppend xml_Buffer, XmlValue.BaseName, xml_BufferPosition, xml_BufferLength
             xml_BufferAppend xml_Buffer, ">", xml_BufferPosition, xml_BufferLength
             
             If xml_PrettyPrint Then
@@ -540,8 +562,8 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             
             ConvertToXml = xml_BufferToString(xml_Buffer, xml_BufferPosition)
         
-        ' Child Nodes (windows only)
-        ElseIf VBA.TypeName(XmlValue) = "IXMLDOMNodeList" Or VBA.TypeName(XmlValue) = "IXMLDOMSelection" Then
+        ' Child Nodes (DOMDocument/CustomXML)
+        ElseIf VBA.TypeName(XmlValue) = "IXMLDOMNodeList" Or VBA.TypeName(XmlValue) = "IXMLDOMSelection" Or VBA.TypeName(XmlValue) = "CustomXMLNodes" Then
         
             For Each xml_ChildNode In XmlValue
                 ' Convert node.
@@ -1030,6 +1052,8 @@ Private Function xml_IsVoidNode(xml_Node As Variant) As Boolean
         End If
     Case "IXMLDOMElement"
         xml_IsVoidNode = (xml_Node.ChildNodes.Length = 0 And xml_Node.Text = vbNullString)
+    Case "CustomXMLNode"
+        xml_IsVoidNode = (xml_Node.ChildNodes.Count = 0 And xml_Node.Text = vbNullString)
     End Select
 End Function
 
