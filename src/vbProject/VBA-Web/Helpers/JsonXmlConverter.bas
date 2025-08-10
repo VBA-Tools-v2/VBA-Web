@@ -170,10 +170,10 @@ Public Function ConvertXmlToJson(ByVal XmlValue As Variant, Optional ByVal White
             ' <--- START TEMP - Convert DOMDocument to VBA-XML Dictionary, then convert to Json.
             Dim xml_ForceVBA As Boolean
             Dim xml_Object As Dictionary
-            xml_ForceVBA = XmlConverter.XmlOptions.ForceVbaXml
-            XmlConverter.XmlOptions.ForceVbaXml = True
+            xml_ForceVBA = XmlConverter.XmlOptions.ForceVbaXmlParser
+            XmlConverter.XmlOptions.ForceVbaXmlParser = True
                 Set xml_Object = XmlConverter.ParseXml(XmlValue.Xml)
-            XmlConverter.XmlOptions.ForceVbaXml = xml_ForceVBA
+            XmlConverter.XmlOptions.ForceVbaXmlParser = xml_ForceVBA
             Set xml_ReturnObject = ConvertXmlToJson(xml_Object, Whitespace, vbObject)
             ' <--- End TEMP
         End If
