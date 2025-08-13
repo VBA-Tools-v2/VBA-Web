@@ -1,6 +1,6 @@
 Attribute VB_Name = "XmlConverter"
 ''
-' VBA-XML v0.4.1
+' VBA-XML v0.4.2
 ' (c) Tim Hall - https://github.com/VBA-tools/VBA-XML
 '
 ' XML Converter for VBA
@@ -497,12 +497,12 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             xml_BufferAppend xml_Buffer, xml_Indentation & "<", xml_BufferPosition, xml_BufferLength
             If VBA.TypeName(XmlValue) = "IXMLDOMElement" Then xml_BufferAppend xml_Buffer, XmlValue.nodeName, xml_BufferPosition, xml_BufferLength
             If VBA.TypeName(XmlValue) = "CustomXMLNode" Then xml_BufferAppend xml_Buffer, XmlValue.BaseName, xml_BufferPosition, xml_BufferLength
-            If Not XmlValue.NamespaceURI = vbNullString And VBA.InStr(VBA.Join(xml_Namespaces, "||") & "||", XmlValue.NamespaceURI & "||") = 0 Then
+            If (Not XmlValue.NamespaceURI = vbNullString Or (XmlValue.NamespaceURI = vbNullString And Not UBound(xml_Namespaces) = -1)) And VBA.InStr(VBA.Join(xml_Namespaces, "||") & "||", VBA.IIf(XmlValue.NamespaceURI = vbNullString, "vbNullString", XmlValue.NamespaceURI) & "||") = 0 Then
                 xml_Converted = " xmlns"
                 If VBA.TypeName(XmlValue) = "IXMLDOMElement" Then xml_Converted = xml_Converted & VBA.IIf(Not XmlValue.Prefix = vbNullString, ":" & XmlValue.Prefix, vbNullString)
                 xml_Converted = xml_Converted & "=""" & XmlValue.NamespaceURI & """"
                 xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
-                ReDim Preserve xml_Namespaces(0 To UBound(xml_Namespaces) + 1): xml_Namespaces(UBound(xml_Namespaces)) = XmlValue.NamespaceURI ' Add to active namespaces.
+                ReDim Preserve xml_Namespaces(0 To UBound(xml_Namespaces) + 1): xml_Namespaces(UBound(xml_Namespaces)) = VBA.IIf(XmlValue.NamespaceURI = vbNullString, "vbNullString", XmlValue.NamespaceURI) ' Add to active namespaces.
             End If
             If Not XmlValue.Attributes Is Nothing Then
                 For Each xml_Attribute In XmlValue.Attributes
