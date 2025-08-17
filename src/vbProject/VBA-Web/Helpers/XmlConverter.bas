@@ -1,6 +1,6 @@
 Attribute VB_Name = "XmlConverter"
 ''
-' VBA-XML v0.4.2
+' VBA-XML v0.4.3
 ' (c) Tim Hall - https://github.com/VBA-tools/VBA-XML
 '
 ' XML Converter for VBA
@@ -476,8 +476,15 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
         
         ' Document (CustomXMLPart)
         ElseIf VBA.TypeName(XmlValue) = "CustomXMLPart" Then
+            ' CustomXMLParts apparently don't expose processing instructions, so we will need to manually check and parse these.
+            If VBA.Left$(XmlValue.XML, 2) = "<?" And VBA.InStr(XmlValue.XML, "?>") > 0 Then
+                xml_BufferAppend xml_Buffer, VBA.Mid$(XmlValue.XML, 1, VBA.InStr(XmlValue.XML, "?>") + 1), xml_BufferPosition, xml_BufferLength
+                xml_BufferAppend xml_Buffer, vbNewLine, xml_BufferPosition, xml_BufferLength ' Always put prolog on its own line.
+            End If
             ' Parse document child nodes.
-            ConvertToXml = ConvertToXml(XmlValue.DocumentElement, Whitespace, xml_CurrentIndentation, xml_Namespaces)
+            xml_BufferAppend xml_Buffer, ConvertToXml(XmlValue.DocumentElement, Whitespace, xml_CurrentIndentation, xml_Namespaces), xml_BufferPosition, xml_BufferLength
+            
+            ConvertToXml = xml_BufferToString(xml_Buffer, xml_BufferPosition)
                 
         ' Prolog (windows only).
         ' TODO - Might need to combine this with the `Node` case and use `NodeType` to conditionally parse, as CustomXML doesn't have a different TypeName for this node type.
