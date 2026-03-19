@@ -50,8 +50,6 @@ Option Private Module
 ' 7. Mac
 ' 8. Cryptography
 ' 9. Converters
-' VBA-JSON
-' VBA-UTC
 ' AutoProxy
 ' --------------------------------------------- '
 
@@ -63,23 +61,15 @@ Option Private Module
 #Const EnableCustomFormatting = True
 
 ' === AutoProxy Headers
-#If Mac Then
-#ElseIf VBA7 Then
+#If Not Mac Then
 
-Private Declare PtrSafe Sub AutoProxy_CopyMemory Lib "kernel32" Alias "RtlMoveMemory" _
-    (ByVal AutoProxy_lpDest As LongPtr, ByVal AutoProxy_lpSource As LongPtr, ByVal AutoProxy_cbCopy As Long)
-Private Declare PtrSafe Function AutoProxy_SysAllocString Lib "oleaut32" Alias "SysAllocString" _
-    (ByVal AutoProxy_pwsz As LongPtr) As LongPtr
-Private Declare PtrSafe Function AutoProxy_GlobalFree Lib "kernel32" Alias "GlobalFree" _
-    (ByVal AutoProxy_p As LongPtr) As LongPtr
-Private Declare PtrSafe Function AutoProxy_GetIEProxy Lib "WinHTTP.dll" Alias "WinHttpGetIEProxyConfigForCurrentUser" _
-    (ByRef AutoProxy_proxyConfig As AUTOPROXY_IE_PROXY_CONFIG) As Long
-Private Declare PtrSafe Function AutoProxy_GetProxyForUrl Lib "WinHTTP.dll" Alias "WinHttpGetProxyForUrl" _
-    (ByVal AutoProxy_hSession As LongPtr, ByVal AutoProxy_pszUrl As LongPtr, ByRef AutoProxy_pAutoProxyOptions As AUTOPROXY_OPTIONS, ByRef AutoProxy_pProxyInfo As AUTOPROXY_INFO) As Long
-Private Declare PtrSafe Function AutoProxy_HttpOpen Lib "WinHTTP.dll" Alias "WinHttpOpen" _
-    (ByVal AutoProxy_pszUserAgent As LongPtr, ByVal AutoProxy_dwAccessType As Long, ByVal AutoProxy_pszProxyName As LongPtr, ByVal AutoProxy_pszProxyBypass As LongPtr, ByVal AutoProxy_dwFlags As Long) As LongPtr
-Private Declare PtrSafe Function AutoProxy_HttpClose Lib "WinHTTP.dll" Alias "WinHttpCloseHandle" _
-    (ByVal AutoProxy_hInternet As LongPtr) As Long
+Private Declare PtrSafe Sub AutoProxy_CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (ByVal AutoProxy_lpDest As LongPtr, ByVal AutoProxy_lpSource As LongPtr, ByVal AutoProxy_cbCopy As Long)
+Private Declare PtrSafe Function AutoProxy_SysAllocString Lib "oleaut32" Alias "SysAllocString" (ByVal AutoProxy_pwsz As LongPtr) As LongPtr
+Private Declare PtrSafe Function AutoProxy_GlobalFree Lib "kernel32" Alias "GlobalFree" (ByVal AutoProxy_p As LongPtr) As LongPtr
+Private Declare PtrSafe Function AutoProxy_GetIEProxy Lib "WinHTTP.dll" Alias "WinHttpGetIEProxyConfigForCurrentUser" (ByRef AutoProxy_proxyConfig As AUTOPROXY_IE_PROXY_CONFIG) As Long
+Private Declare PtrSafe Function AutoProxy_GetProxyForUrl Lib "WinHTTP.dll" Alias "WinHttpGetProxyForUrl" (ByVal AutoProxy_hSession As LongPtr, ByVal AutoProxy_pszUrl As LongPtr, ByRef AutoProxy_pAutoProxyOptions As AUTOPROXY_OPTIONS, ByRef AutoProxy_pProxyInfo As AUTOPROXY_INFO) As Long
+Private Declare PtrSafe Function AutoProxy_HttpOpen Lib "WinHTTP.dll" Alias "WinHttpOpen" (ByVal AutoProxy_pszUserAgent As LongPtr, ByVal AutoProxy_dwAccessType As Long, ByVal AutoProxy_pszProxyName As LongPtr, ByVal AutoProxy_pszProxyBypass As LongPtr, ByVal AutoProxy_dwFlags As Long) As LongPtr
+Private Declare PtrSafe Function AutoProxy_HttpClose Lib "WinHTTP.dll" Alias "WinHttpCloseHandle" (ByVal AutoProxy_hInternet As LongPtr) As Long
 
 Private Type AUTOPROXY_IE_PROXY_CONFIG
     AutoProxy_fAutoDetect As Long
@@ -101,47 +91,6 @@ Private Type AUTOPROXY_INFO
     AutoProxy_lpszProxyBypass As LongPtr
 End Type
 
-#Else
-
-Private Declare Sub AutoProxy_CopyMemory Lib "kernel32" Alias "RtlMoveMemory" _
-    (ByVal AutoProxy_lpDest As Long, ByVal AutoProxy_lpSource As Long, ByVal AutoProxy_cbCopy As Long)
-Private Declare Function AutoProxy_SysAllocString Lib "oleaut32" Alias "SysAllocString" _
-    (ByVal AutoProxy_pwsz As Long) As Long
-Private Declare Function AutoProxy_GlobalFree Lib "kernel32" Alias "GlobalFree" _
-    (ByVal AutoProxy_p As Long) As Long
-Private Declare Function AutoProxy_GetIEProxy Lib "WinHTTP.dll" Alias "WinHttpGetIEProxyConfigForCurrentUser" _
-    (ByRef AutoProxy_proxyConfig As AUTOPROXY_IE_PROXY_CONFIG) As Long
-Private Declare Function AutoProxy_GetProxyForUrl Lib "WinHTTP.dll" Alias "WinHttpGetProxyForUrl" _
-    (ByVal AutoProxy_hSession As Long, ByVal AutoProxy_pszUrl As Long, ByRef AutoProxy_pAutoProxyOptions As AUTOPROXY_OPTIONS, ByRef AutoProxy_pProxyInfo As AUTOPROXY_INFO) As Long
-Private Declare Function AutoProxy_HttpOpen Lib "WinHTTP.dll" Alias "WinHttpOpen" _
-    (ByVal AutoProxy_pszUserAgent As Long, ByVal AutoProxy_dwAccessType As Long, ByVal AutoProxy_pszProxyName As Long, ByVal AutoProxy_pszProxyBypass As Long, ByVal AutoProxy_dwFlags As Long) As Long
-Private Declare Function AutoProxy_HttpClose Lib "WinHTTP.dll" Alias "WinHttpCloseHandle" _
-    (ByVal AutoProxy_hInternet As Long) As Long
-
-Private Type AUTOPROXY_IE_PROXY_CONFIG
-    AutoProxy_fAutoDetect As Long
-    AutoProxy_lpszAutoConfigUrl As Long
-    AutoProxy_lpszProxy As Long
-    AutoProxy_lpszProxyBypass As Long
-End Type
-Private Type AUTOPROXY_OPTIONS
-    AutoProxy_dwFlags As Long
-    AutoProxy_dwAutoDetectFlags As Long
-    AutoProxy_lpszAutoConfigUrl As Long
-    AutoProxy_lpvReserved As Long
-    AutoProxy_dwReserved As Long
-    AutoProxy_fAutoLogonIfChallenged As Long
-End Type
-Private Type AUTOPROXY_INFO
-    AutoProxy_dwAccessType As Long
-    AutoProxy_lpszProxy As Long
-    AutoProxy_lpszProxyBypass As Long
-End Type
-
-#End If
-
-#If Mac Then
-#Else
 ' Constants for dwFlags of AUTOPROXY_OPTIONS
 Const AUTOPROXY_AUTO_DETECT = 1
 Const AUTOPROXY_CONFIG_URL = 2
@@ -149,22 +98,16 @@ Const AUTOPROXY_CONFIG_URL = 2
 ' Constants for dwAutoDetectFlags
 Const AUTOPROXY_DETECT_TYPE_DHCP = 1
 Const AUTOPROXY_DETECT_TYPE_DNS = 2
+
 #End If
 ' === End AutoProxy
 
 #If Mac Then
-#If VBA7 Then
 Private Declare PtrSafe Function web_popen Lib "/usr/lib/system/libSystem.B.dylib" Alias "popen" (ByVal web_Command As String, ByVal web_Mode As String) As LongPtr
 Private Declare PtrSafe Function web_pclose Lib "/usr/lib/system/libSystem.B.dylib" Alias "pclose" (ByVal web_File As LongPtr) As LongPtr
 Private Declare PtrSafe Function web_fread Lib "/usr/lib/system/libSystem.B.dylib" Alias "fread" (ByVal web_OutStr As String, ByVal web_Size As LongPtr, ByVal web_Items As LongPtr, ByVal web_Stream As LongPtr) As LongPtr
 Private Declare PtrSafe Function web_feof Lib "/usr/lib/system/libSystem.B.dylib" Alias "feof" (ByVal web_File As LongPtr) As LongPtr
 Private Declare PtrSafe Sub web_ccMd5 Lib "/usr/lib/system/libcommonCrypto.dylib" Alias "CC_MD5" (ByVal web_Data As LongPtr, ByVal web_Len As Long, ByVal web_Hash As LongPtr)
-#Else
-Private Declare Function web_popen Lib "libc.dylib" Alias "popen" (ByVal web_Command As String, ByVal web_Mode As String) As Long
-Private Declare Function web_pclose Lib "libc.dylib" Alias "pclose" (ByVal web_File As Long) As Long
-Private Declare Function web_fread Lib "libc.dylib" Alias "fread" (ByVal web_OutStr As String, ByVal web_Size As Long, ByVal web_Items As Long, ByVal web_Stream As Long) As Long
-Private Declare Function web_feof Lib "libc.dylib" Alias "feof" (ByVal web_File As Long) As Long
-#End If
 #End If
 
 Public Const WebUserAgent As String = "VBA-Web v4.1.6 (https://github.com/VBA-tools/VBA-Web)"
