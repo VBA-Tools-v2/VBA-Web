@@ -158,6 +158,7 @@ Private Declare PtrSafe Function web_popen Lib "/usr/lib/libc.dylib" Alias "pope
 Private Declare PtrSafe Function web_pclose Lib "/usr/lib/libc.dylib" Alias "pclose" (ByVal web_File As LongPtr) As LongPtr
 Private Declare PtrSafe Function web_fread Lib "/usr/lib/libc.dylib" Alias "fread" (ByVal web_OutStr As String, ByVal web_Size As LongPtr, ByVal web_Items As LongPtr, ByVal web_Stream As LongPtr) As LongPtr
 Private Declare PtrSafe Function web_feof Lib "/usr/lib/libc.dylib" Alias "feof" (ByVal web_File As LongPtr) As LongPtr
+Private Declare PtrSafe Sub web_ccMd5 Lib "/usr/lib/system/libcommonCrypto.dylib" Alias "CC_MD5" (ByVal web_Data As LongPtr, ByVal web_Len As Long, ByVal web_Hash As LongPtr)
 #Else
 Private Declare Function web_popen Lib "libc.dylib" Alias "popen" (ByVal web_Command As String, ByVal web_Mode As String) As Long
 Private Declare Function web_pclose Lib "libc.dylib" Alias "pclose" (ByVal web_File As Long) As Long
@@ -1837,27 +1838,33 @@ End Function
 ' ```
 '
 ' @method MD5
-' @param {String} Text
+' @param {Byte()|String} BytesOrText
 ' @param {String} [Format="Hex"] "Hex" or "Base64" encoding for result
 ' @return {String} MD5 Hash
 ''
-Public Function MD5(Text As String, Optional Format As String = "Hex") As String
-#If Mac Then
-    Dim web_Command As String
-    web_Command = "printf " & PrepareTextForPrintf(Text) & " | openssl dgst -md5"
-
-    If Format = "Base64" Then
-        web_Command = web_Command & " -binary | openssl enc -base64"
-    End If
-
-    MD5 = VBA.Replace(ExecuteInShell(web_Command).Output, vbLf, "")
-#Else
+Public Function MD5(BytesOrText As Variant, Optional Format As String = "Hex") As String
     Dim web_Crypto As Object
-    Dim web_TextBytes() As Byte
-    Dim web_Bytes() As Byte
-
-    web_TextBytes = VBA.StrConv(Text, vbFromUnicode)
-
+    Dim web_InputBytes() As Byte
+    Dim web_HashBytes() As Byte
+    
+    ' Normalise input.
+    Select Case VBA.VarType(BytesOrText)
+    Case VBA.vbArray + VBA.vbByte
+        web_InputBytes = BytesOrText
+    Case VBA.vbString
+        web_InputBytes = VBA.StrConv(VBA.CStr(BytesOrText), vbFromUnicode)
+    Case Else
+        Err.Raise 5, "MD5", "'BytesOrText' variable must be of type {Byte()} or {String}."  ' Invalid procedure call or argument
+    End Select
+    
+    ' Hash bytes.
+#If Mac Then
+    If UBound(web_InputBytes) >= 0 Then
+        web_ccMd5 VarPtr(web_InputBytes(0)), UBound(web_InputBytes) - LBound(web_InputBytes) + 1, VarPtr(web_HashBytes(0))
+    Else
+        web_ccMd5 0, 0, VarPtr(web_HashBytes(0))    ' Hash empty input.
+    End If
+#Else
     ' Attempt to create system object. This will error if .NET Framework 3.5 is not available.
     On Error Resume Next
         Set web_Crypto = CreateObject("System.Security.Cryptography.MD5CryptoServiceProvider")
@@ -1866,18 +1873,19 @@ Public Function MD5(Text As String, Optional Format As String = "Hex") As String
     If web_Crypto Is Nothing Then
         ' If .NET Framework is unavailable, use WebCrypto class to perform hash.
         Set web_Crypto = New WebCrypto
-        web_Bytes = web_Crypto.MD5(web_TextBytes)
+        web_HashBytes = web_Crypto.MD5(web_InputBytes)
     Else
-        web_Bytes = web_Crypto.ComputeHash_2(web_TextBytes)
+        web_HashBytes = web_Crypto.ComputeHash_2(web_InputBytes)
     End If
-
+#End If
+    
+    ' Output in desired format.
     Select Case Format
     Case "Base64"
-        MD5 = web_AnsiBytesToBase64(web_Bytes)
+        MD5 = web_AnsiBytesToBase64(web_HashBytes)
     Case Else
-        MD5 = web_AnsiBytesToHex(web_Bytes)
+        MD5 = web_AnsiBytesToHex(web_HashBytes)
     End Select
-#End If
 End Function
 
 ''
@@ -1996,13 +2004,40 @@ Public Function StringToAnsiBytes(web_Text As String) As Byte()
     StringToAnsiBytes = web_AnsiBytes
 End Function
 
-#If Not Mac Then
 Private Function web_AnsiBytesToBase64(web_Bytes() As Byte)
-    ' Use XML to convert to Base64
-    Dim web_Crypto As WebCrypto
-    Set web_Crypto = New WebCrypto
-    web_AnsiBytesToBase64 = web_Crypto.Encode(web_Bytes, edfBase64, efNoFolding)
-    Set web_Crypto = Nothing
+    Const web_Table As String = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    
+    Dim web_Index As Long
+    Dim web_Base64 As String
+    Dim web_Byte0 As Long: Dim web_Byte1 As Long: Dim web_Byte2 As Long
+    Dim web_Packed24 As Long
+    
+    For web_Index = LBound(web_Bytes) To UBound(web_Bytes) Step 3
+        web_Byte0 = web_Bytes(web_Index)
+        If web_Index + 1 <= UBound(web_Bytes) Then web_Byte1 = web_Bytes(web_Index + 1) Else web_Byte1 = -1
+        If web_Index + 2 <= UBound(web_Bytes) Then web_Byte2 = web_Bytes(web_Index + 2) Else web_Byte2 = -1
+        
+        web_Packed24 = (web_Byte0 And &HFF) * &H10000
+        If web_Byte1 >= 0 Then web_Packed24 = web_Packed24 Or (web_Byte1 And &HFF) * &H100
+        If web_Byte2 >= 0 Then web_Packed24 = web_Packed24 Or (web_Byte2 And &HFF)
+        
+        web_Base64 = web_Base64 & VBA.Mid$(web_Table, ((web_Packed24 \ &H40000) And &H3F) + 1, 1)
+        web_Base64 = web_Base64 & VBA.Mid$(web_Table, ((web_Packed24 \ &H1000) And &H3F) + 1, 1)
+        
+        If web_Byte1 >= 0 Then
+            web_Base64 = web_Base64 & VBA.Mid$(web_Table, ((web_Packed24 \ &H40) And &H3F) + 1, 1)
+        Else
+            web_Base64 = web_Base64 & "="
+        End If
+        
+        If web_Byte2 >= 0 Then
+            web_Base64 = web_Base64 & VBA.Mid$(web_Table, (web_Packed24 And &H3F) + 1, 1)
+        Else
+            web_Base64 = web_Base64 & "="
+        End If
+    Next web_Index
+    
+    web_AnsiBytesToBase64 = web_Base64
 End Function
 
 Private Function web_AnsiBytesToHex(web_Bytes() As Byte)
@@ -2011,7 +2046,6 @@ Private Function web_AnsiBytesToHex(web_Bytes() As Byte)
         web_AnsiBytesToHex = web_AnsiBytesToHex & VBA.LCase$(VBA.Right$("0" & VBA.Hex$(web_Bytes(web_i)), 2))
     Next web_i
 End Function
-#End If
 
 ' ============================================= '
 ' 9. Converters
