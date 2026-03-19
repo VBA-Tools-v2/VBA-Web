@@ -154,10 +154,10 @@ Const AUTOPROXY_DETECT_TYPE_DNS = 2
 
 #If Mac Then
 #If VBA7 Then
-Private Declare PtrSafe Function web_popen Lib "/usr/lib/libc.dylib" Alias "popen" (ByVal web_Command As String, ByVal web_Mode As String) As LongPtr
-Private Declare PtrSafe Function web_pclose Lib "/usr/lib/libc.dylib" Alias "pclose" (ByVal web_File As LongPtr) As LongPtr
-Private Declare PtrSafe Function web_fread Lib "/usr/lib/libc.dylib" Alias "fread" (ByVal web_OutStr As String, ByVal web_Size As LongPtr, ByVal web_Items As LongPtr, ByVal web_Stream As LongPtr) As LongPtr
-Private Declare PtrSafe Function web_feof Lib "/usr/lib/libc.dylib" Alias "feof" (ByVal web_File As LongPtr) As LongPtr
+Private Declare PtrSafe Function web_popen Lib "/usr/lib/system/libsystem.B.dylib" Alias "popen" (ByVal web_Command As String, ByVal web_Mode As String) As LongPtr
+Private Declare PtrSafe Function web_pclose Lib "/usr/lib/system/libsystem.B.dylib" Alias "pclose" (ByVal web_File As LongPtr) As LongPtr
+Private Declare PtrSafe Function web_fread Lib "/usr/lib/system/libsystem.B.dylib" Alias "fread" (ByVal web_OutStr As String, ByVal web_Size As LongPtr, ByVal web_Items As LongPtr, ByVal web_Stream As LongPtr) As LongPtr
+Private Declare PtrSafe Function web_feof Lib "/usr/lib/system/libsystem.B.dylib" Alias "feof" (ByVal web_File As LongPtr) As LongPtr
 Private Declare PtrSafe Sub web_ccMd5 Lib "/usr/lib/system/libcommonCrypto.dylib" Alias "CC_MD5" (ByVal web_Data As LongPtr, ByVal web_Len As Long, ByVal web_Hash As LongPtr)
 #Else
 Private Declare Function web_popen Lib "libc.dylib" Alias "popen" (ByVal web_Command As String, ByVal web_Mode As String) As Long
