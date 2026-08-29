@@ -1,9 +1,17 @@
 Attribute VB_Name = "XmlConverter"
 ''
-' VBA-XML v0.4.4
+' VBA-XML v0.4.5
 ' (c) Tim Hall - https://github.com/VBA-tools/VBA-XML
 '
 ' XML Converter for VBA
+'
+' TODO:
+' 1) Support numeric character references (&#...;)
+' 2) Add CDATA node detection.
+' 3) Fix whitespace handling inside mixed content. (<p>Hello <b>world</b>!</p>) would lose whitespace after 'Hello'.
+' 4) Improve attribute parsing around malformed input due to whitespace. (attr =    "value" or attr= value).
+' 5) Attribute/Node parsing accepts invalid XML names.
+' 6) Handle namespaces in internal parser (already correctly handled in DomDocument/CustomXml).
 '
 ' Design:
 ' The goal is to have the general form of MSXML2.DOMDocument (albeit not feature complete)
@@ -331,19 +339,21 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
         
         ' Dictionary (VBA-XML Document/Node).
         If VBA.TypeName(XmlValue) = "Dictionary" Then
+            Dim xml_ebNodeDic As Dictionary ' Early-bound alias for dictionary-based nodes.
+            Set xml_ebNodeDic = XmlValue    ' Cast to explicitly typed variable to avoid late (IDispatch) binding on `.Item` calls.
             ' If root node, parse prolog and child nodes then exit.
-            If XmlValue.Item("nodeName") = "#document" Then
-                If Not XmlValue.Item("prolog") = vbNullString Then
-                    xml_BufferAppend xml_Buffer, XmlValue.Item("prolog"), xml_BufferPosition, xml_BufferLength
-                    xml_BufferAppend xml_Buffer, vbNewLine, xml_BufferPosition, xml_BufferLength ' Always put prolog on its own line.
+            If xml_ebNodeDic.Item("nodeName") = "#document" Then
+                If Not xml_ebNodeDic.Item("prolog") = vbNullString Then
+                    xml_BufferAppend xml_Buffer, xml_ebNodeDic.Item("prolog"), xml_BufferPosition, xml_BufferLength
+                    xml_BufferAppend xml_Buffer, vbNewLine, xml_BufferPosition, xml_BufferLength
                 End If
-                xml_Converted = ConvertToXml(XmlValue.Item("childNodes"), Whitespace, xml_CurrentIndentation, xml_Namespaces)
+                xml_Converted = ConvertToXml(xml_ebNodeDic.Item("childNodes"), Whitespace, xml_CurrentIndentation, xml_Namespaces)
                 xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                 ConvertToXml = xml_BufferToString(xml_Buffer, xml_BufferPosition)
                 Exit Function
             Else
                 ' Validate Dictionary structure.
-                If Not XmlValue.Exists("nodeName") Or Not XmlValue.Exists("nodeValue") Then
+                If Not xml_ebNodeDic.Exists("nodeName") Or Not xml_ebNodeDic.Exists("nodeValue") Then
                     Err.Raise 11001, "XMLConverter", "Error parsing XML:" & VBA.vbNewLine & Err.Number & " - " & Err.Description & _
                         "Poorly structured XML Dictionary. Use `ParseXml` with `XmlOptions.ForceVbaXml = True` OR " & _
                         "`CreateNode` and `CreateAttribute` to create a correctly structured XML dictionary object."
@@ -351,21 +361,22 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
             
                 ' Add 'Start Tag'.
                 xml_BufferAppend xml_Buffer, xml_Indentation & "<", xml_BufferPosition, xml_BufferLength
-                xml_BufferAppend xml_Buffer, XmlValue.Item("nodeName"), xml_BufferPosition, xml_BufferLength
-                If XmlValue.Exists("attributes") Then
-                    If Not XmlValue.Item("attributes") Is Nothing Then
-                        For Each xml_Attribute In XmlValue.Item("attributes")
+                xml_BufferAppend xml_Buffer, xml_ebNodeDic.Item("nodeName"), xml_BufferPosition, xml_BufferLength
+                If xml_ebNodeDic.Exists("attributes") Then
+                    If Not xml_ebNodeDic.Item("attributes") Is Nothing Then
+                        Dim xml_ebAttributeDic As Dictionary                            ' Early-bound alias for dictionary-based attributes.
+                        For Each xml_ebAttributeDic In xml_ebNodeDic.Item("attributes") ' Cast to explicitly typed variable to avoid late (IDispatch) binding on `.Item` calls.
                             xml_BufferAppend xml_Buffer, " ", xml_BufferPosition, xml_BufferLength
-                            xml_BufferAppend xml_Buffer, xml_Attribute.Item("name"), xml_BufferPosition, xml_BufferLength
+                            xml_BufferAppend xml_Buffer, xml_ebAttributeDic.Item("name"), xml_BufferPosition, xml_BufferLength
                             xml_BufferAppend xml_Buffer, "=""", xml_BufferPosition, xml_BufferLength
-                            xml_BufferAppend xml_Buffer, xml_Encode(xml_Attribute.Item("value"), """"), xml_BufferPosition, xml_BufferLength
+                            xml_BufferAppend xml_Buffer, xml_Encode(xml_ebAttributeDic.Item("value"), """"), xml_BufferPosition, xml_BufferLength
                             xml_BufferAppend xml_Buffer, """", xml_BufferPosition, xml_BufferLength
-                        Next xml_Attribute
+                        Next xml_ebAttributeDic
                     End If
                 End If
                 
                 ' Check for void node.
-                If xml_IsVoidNode(XmlValue) Then
+                If xml_IsVoidNode(xml_ebNodeDic) Then
                     ' Add 'Empty Element' tag and exit.
                     xml_BufferAppend xml_Buffer, "/>", xml_BufferPosition, xml_BufferLength
                     If xml_PrettyPrint Then
@@ -385,36 +396,36 @@ Public Function ConvertToXml(ByVal XmlValue As Variant, Optional ByVal Whitespac
                 End If
                 
                 ' Add node content.
-                If XmlValue.Exists("childNodes") Then
-                    If XmlValue.Item("childNodes").Count > 0 Then
+                If xml_ebNodeDic.Exists("childNodes") Then
+                    If xml_ebNodeDic.Item("childNodes").Count > 0 Then
                         If xml_PrettyPrint Then
                             xml_BufferAppend xml_Buffer, vbNewLine, xml_BufferPosition, xml_BufferLength
-            
+                            
                             If VBA.VarType(Whitespace) = VBA.vbString Then
                                 xml_Indentation = VBA.String$(xml_CurrentIndentation, Whitespace)
                             Else
                                 xml_Indentation = VBA.Space$(xml_CurrentIndentation * Whitespace)
                             End If
                         End If
-                    
+                        
                         ' Convert childNodes.
-                        xml_Converted = ConvertToXml(XmlValue.Item("childNodes"), Whitespace, xml_CurrentIndentation + 1, xml_Namespaces)
+                        xml_Converted = ConvertToXml(xml_ebNodeDic.Item("childNodes"), Whitespace, xml_CurrentIndentation + 1, xml_Namespaces)
                         xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                         xml_BufferAppend xml_Buffer, xml_Indentation, xml_BufferPosition, xml_BufferLength
                     Else
                         ' No child nodes, add text.
-                        xml_Converted = ConvertToXml(XmlValue.Item("nodeValue"), Whitespace, xml_CurrentIndentation + 1, xml_Namespaces)
+                        xml_Converted = ConvertToXml(xml_ebNodeDic.Item("nodeValue"), Whitespace, xml_CurrentIndentation + 1, xml_Namespaces)
                         xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                     End If
                 Else
                     ' No child nodes, add text.
-                    xml_Converted = ConvertToXml(XmlValue.Item("nodeValue"), Whitespace, xml_CurrentIndentation + 1, xml_Namespaces)
+                    xml_Converted = ConvertToXml(xml_ebNodeDic.Item("nodeValue"), Whitespace, xml_CurrentIndentation + 1, xml_Namespaces)
                     xml_BufferAppend xml_Buffer, xml_Converted, xml_BufferPosition, xml_BufferLength
                 End If
                 
                 ' Add 'End Tag'.
                 xml_BufferAppend xml_Buffer, "</", xml_BufferPosition, xml_BufferLength
-                xml_BufferAppend xml_Buffer, XmlValue.Item("nodeName"), xml_BufferPosition, xml_BufferLength
+                xml_BufferAppend xml_Buffer, xml_ebNodeDic.Item("nodeName"), xml_BufferPosition, xml_BufferLength
                 xml_BufferAppend xml_Buffer, ">", xml_BufferPosition, xml_BufferLength
                 
                 If xml_PrettyPrint Then
@@ -1036,11 +1047,14 @@ End Function
 Private Function xml_IsVoidNode(xml_Node As Variant) As Boolean
     Select Case VBA.TypeName(xml_Node)
     Case "Dictionary"
-        If xml_Node.Exists("childNodes") Then
-            xml_IsVoidNode = VBA.IsNull(xml_Node.Item("nodeValue")) And xml_Node.Item("childNodes").Count = 0
+        Dim xml_ebNodeDic As Dictionary    ' Early-bound alias for dictionary-based nodes.
+        Set xml_ebNodeDic = xml_Node       ' Cast to explicitly typed variable to avoid late (IDispatch) binding on `.Item` calls.
+        If xml_ebNodeDic.Exists("childNodes") Then
+            xml_IsVoidNode = VBA.IsNull(xml_ebNodeDic.Item("nodeValue")) And xml_ebNodeDic.Item("childNodes").Count = 0
         Else
-            xml_IsVoidNode = VBA.IsNull(xml_Node.Item("nodeValue"))
+            xml_IsVoidNode = VBA.IsNull(xml_ebNodeDic.Item("nodeValue"))
         End If
+        Set xml_ebNodeDic = Nothing
     Case "IXMLDOMElement"
         xml_IsVoidNode = (xml_Node.ChildNodes.Length = 0 And xml_Node.Text = vbNullString)
     Case "CustomXMLNode"
