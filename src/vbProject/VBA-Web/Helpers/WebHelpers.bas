@@ -1891,13 +1891,23 @@ Public Function StringToAnsiBytes(web_Text As String) As Byte()
     StringToAnsiBytes = web_AnsiBytes
 End Function
 
-Private Function web_AnsiBytesToBase64(web_Bytes() As Byte)
+''
+' Encode byte array to base64 string.
+'
+' @method web_AnsiBytesToBase64
+' @param {Byte()} web_Bytes | Byte array to encode.
+' @return {String}
+''
+Private Function web_AnsiBytesToBase64(ByRef web_Bytes() As Byte) As String
     Const web_Table As String = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-    
-    Dim web_Index As Long
-    Dim web_Base64 As String
-    Dim web_Byte0 As Long: Dim web_Byte1 As Long: Dim web_Byte2 As Long
+    Dim web_Index As Long, web_OutIndex As Long
+    Dim web_Byte0 As Long, web_Byte1 As Long, web_Byte2 As Long
     Dim web_Packed24 As Long
+    Dim web_ByteCount As Long
+    
+    web_ByteCount = UBound(web_Bytes) - LBound(web_Bytes) + 1
+    web_AnsiBytesToBase64 = VBA.Space$(4 * ((web_ByteCount + 2) \ 3))
+    web_OutIndex = 1
     
     For web_Index = LBound(web_Bytes) To UBound(web_Bytes) Step 3
         web_Byte0 = web_Bytes(web_Index)
@@ -1908,30 +1918,30 @@ Private Function web_AnsiBytesToBase64(web_Bytes() As Byte)
         If web_Byte1 >= 0 Then web_Packed24 = web_Packed24 Or (web_Byte1 And &HFF) * &H100
         If web_Byte2 >= 0 Then web_Packed24 = web_Packed24 Or (web_Byte2 And &HFF)
         
-        web_Base64 = web_Base64 & VBA.Mid$(web_Table, ((web_Packed24 \ &H40000) And &H3F) + 1, 1)
-        web_Base64 = web_Base64 & VBA.Mid$(web_Table, ((web_Packed24 \ &H1000) And &H3F) + 1, 1)
-        
-        If web_Byte1 >= 0 Then
-            web_Base64 = web_Base64 & VBA.Mid$(web_Table, ((web_Packed24 \ &H40) And &H3F) + 1, 1)
-        Else
-            web_Base64 = web_Base64 & "="
-        End If
-        
-        If web_Byte2 >= 0 Then
-            web_Base64 = web_Base64 & VBA.Mid$(web_Table, (web_Packed24 And &H3F) + 1, 1)
-        Else
-            web_Base64 = web_Base64 & "="
-        End If
+        VBA.Mid$(web_AnsiBytesToBase64, web_OutIndex, 1) = VBA.Mid$(web_Table, ((web_Packed24 \ &H40000) And &H3F) + 1, 1)
+        VBA.Mid$(web_AnsiBytesToBase64, web_OutIndex + 1, 1) = VBA.Mid$(web_Table, ((web_Packed24 \ &H1000) And &H3F) + 1, 1)
+        VBA.Mid$(web_AnsiBytesToBase64, web_OutIndex + 2, 1) = VBA.IIf(web_Byte1 >= 0, VBA.Mid$(web_Table, ((web_Packed24 \ &H40) And &H3F) + 1, 1), "=")
+        VBA.Mid$(web_AnsiBytesToBase64, web_OutIndex + 3, 1) = VBA.IIf(web_Byte2 >= 0, VBA.Mid$(web_Table, (web_Packed24 And &H3F) + 1, 1), "=")
+        web_OutIndex = web_OutIndex + 4
     Next web_Index
-    
-    web_AnsiBytesToBase64 = web_Base64
 End Function
 
-Private Function web_AnsiBytesToHex(web_Bytes() As Byte)
-    Dim web_i As Long
-    For web_i = LBound(web_Bytes) To UBound(web_Bytes)
-        web_AnsiBytesToHex = web_AnsiBytesToHex & VBA.LCase$(VBA.Right$("0" & VBA.Hex$(web_Bytes(web_i)), 2))
-    Next web_i
+''
+' Encode byte array to Hex string.
+'
+' @method web_AnsiBytesToHex
+' @param {Byte()} web_Bytes | Byte array to encode.
+' @return {String}
+''
+Private Function web_AnsiBytesToHex(web_Bytes() As Byte) As String
+    Dim web_Index As Long
+    Dim web_OutIndex As Long
+    web_AnsiBytesToHex = VBA.Space$(2 * (UBound(web_Bytes) - LBound(web_Bytes) + 1))
+    web_OutIndex = 1
+    For web_Index = LBound(web_Bytes) To UBound(web_Bytes)
+        Mid$(web_AnsiBytesToHex, web_OutIndex, 2) = VBA.LCase$(VBA.Right$("0" & VBA.Hex$(web_Bytes(web_Index)), 2))
+        web_OutIndex = web_OutIndex + 2
+    Next web_Index
 End Function
 
 ' ============================================= '
