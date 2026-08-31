@@ -1918,10 +1918,10 @@ Private Function web_AnsiBytesToBase64(ByRef web_Bytes() As Byte) As String
         If web_Byte1 >= 0 Then web_Packed24 = web_Packed24 Or (web_Byte1 And &HFF) * &H100
         If web_Byte2 >= 0 Then web_Packed24 = web_Packed24 Or (web_Byte2 And &HFF)
         
-        VBA.Mid$(web_AnsiBytesToBase64, web_OutIndex, 1) = VBA.Mid$(web_Table, ((web_Packed24 \ &H40000) And &H3F) + 1, 1)
-        VBA.Mid$(web_AnsiBytesToBase64, web_OutIndex + 1, 1) = VBA.Mid$(web_Table, ((web_Packed24 \ &H1000) And &H3F) + 1, 1)
-        VBA.Mid$(web_AnsiBytesToBase64, web_OutIndex + 2, 1) = VBA.IIf(web_Byte1 >= 0, VBA.Mid$(web_Table, ((web_Packed24 \ &H40) And &H3F) + 1, 1), "=")
-        VBA.Mid$(web_AnsiBytesToBase64, web_OutIndex + 3, 1) = VBA.IIf(web_Byte2 >= 0, VBA.Mid$(web_Table, (web_Packed24 And &H3F) + 1, 1), "=")
+        Mid$(web_AnsiBytesToBase64, web_OutIndex, 1) = VBA.Mid$(web_Table, ((web_Packed24 \ &H40000) And &H3F) + 1, 1)
+        Mid$(web_AnsiBytesToBase64, web_OutIndex + 1, 1) = VBA.Mid$(web_Table, ((web_Packed24 \ &H1000) And &H3F) + 1, 1)
+        Mid$(web_AnsiBytesToBase64, web_OutIndex + 2, 1) = VBA.IIf(web_Byte1 >= 0, VBA.Mid$(web_Table, ((web_Packed24 \ &H40) And &H3F) + 1, 1), "=")
+        Mid$(web_AnsiBytesToBase64, web_OutIndex + 3, 1) = VBA.IIf(web_Byte2 >= 0, VBA.Mid$(web_Table, (web_Packed24 And &H3F) + 1, 1), "=")
         web_OutIndex = web_OutIndex + 4
     Next web_Index
 End Function
