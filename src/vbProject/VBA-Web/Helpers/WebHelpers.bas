@@ -917,14 +917,23 @@ Public Function UrlDecode(Encoded As String, _
 End Function
 
 ''
-' Base64-encode text.
+' Base64-encode a byte array or text string. Text is encoded as UTF-8 on all platforms.
 '
-' @param {Variant} Text Text to encode
-' @return {String} Encoded string
+' @param {String|Byte()} BytesOrText | Value to encode.
+' @return {String} Padded base64 string.
 ''
-Public Function Base64Encode(Text As String) As String
+Public Function Base64Encode(BytesOrText As Variant) As String
     Dim web_Bytes() As Byte
-    web_Bytes = StringToUtf8Bytes(Text)
+
+    Select Case VBA.VarType(BytesOrText)
+    Case VBA.vbArray + VBA.vbByte
+        web_Bytes = BytesOrText
+    Case VBA.vbString
+        web_Bytes = StringToUtf8Bytes(VBA.CStr(BytesOrText))
+    Case Else
+        Err.Raise 5, "Base64Encode", "'BytesOrText' must be of type {Byte()} or {String}." ' Invalid procedure call or argument.
+    End Select
+
     Base64Encode = web_BytesToBase64(web_Bytes)
 End Function
 
@@ -953,11 +962,11 @@ End Function
 ' Base64url-encode (as defined in RFC 7515) text, which uses `-` and `_` instead of `+` and `/` when compared to Base64.
 ' Used when working with JWTs.
 '
-' @param {Variant} Text | Text to encode.
+' @param {String|Byte()} BytesOrText | Value to encode.
 ' @return {String} Encoded string
 ''
-Public Function Base64UrlEncode(Text As String) As String
-    Base64UrlEncode = VBA.Replace(VBA.Replace(VBA.Replace(Base64Encode(Text), "+", "-"), "/", "_"), "=", vbNullString)
+Public Function Base64UrlEncode(BytesOrText As Variant) As String
+    Base64UrlEncode = VBA.Replace(VBA.Replace(VBA.Replace(Base64Encode(BytesOrText), "+", "-"), "/", "_"), "=", vbNullString)
 End Function
 
 ''
